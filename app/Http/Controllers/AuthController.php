@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Mail\BienvenidaMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -16,24 +19,32 @@ class AuthController extends Controller
             'apellido_p'       => 'required|string|max:100',
             'apellido_m'       => 'required|string|max:100',
             'correo'           => 'required|email|unique:usuarios,correo',
-            'password'         => 'required|string|min:8|confirmed',
             'fecha_nacimiento' => 'required|date',
         ]);
+
+        // Generar contraseña aleatoria de 8 caracteres
+        $passwordPlano = Str::random(8);
 
         $user = User::create([
             'nombre'           => $request->nombre,
             'apellido_p'       => $request->apellido_p,
             'apellido_m'       => $request->apellido_m,
             'correo'           => $request->correo,
-            'password_hash'    => Hash::make($request->password),
+            'password_hash'    => Hash::make($passwordPlano),
             'fecha_nacimiento' => $request->fecha_nacimiento,
         ]);
+
+        // Enviar correo con la contraseña generada
+        Mail::to($user->correo)->send(
+            new BienvenidaMail($user->nombre, $user->correo, $passwordPlano)
+        );
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'user'  => $user,
-            'token' => $token,
+            'mensaje' => 'Usuario registrado. Se envió la contraseña al correo.',
+            'user'    => $user,
+            'token'   => $token,
         ], 201);
     }
 
