@@ -1,14 +1,7 @@
-/* ============================================================
-   GLOBAL STYLES — ChatApp
-   Color principal: #00CEC8
-   Aplica a: login.html, register.html, chat.html
-   ============================================================ */
-
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* ── Variables ── */
 :root {
-  --bg:           #f0fffe;
+  --bg:           #d7f4f2;
   --card:         #ffffff;
   --accent:       #00CEC8;
   --accent-dark:  #00a8a3;
@@ -20,7 +13,6 @@
   --success:      #27ae60;
   --online:       #00CEC8;
 
-  /* Chat específico */
   --chat-bg:      #0a1f1f;
   --surface:      #0f2a2a;
   --surface2:     #163333;
@@ -29,7 +21,6 @@
   --chat-muted:   #4d8f8d;
 }
 
-/* ── Base ── */
 body {
   font-family: 'DM Sans', 'Sora', sans-serif;
   background: var(--bg);
@@ -40,9 +31,7 @@ body {
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
-/* ============================================================
-   FONDOS DECORATIVOS (login & register)
-   ============================================================ */
+/* ── Fondos decorativos ── */
 .bg-circle {
   position: fixed;
   border-radius: 50%;
@@ -71,9 +60,7 @@ a:hover { text-decoration: underline; }
 .bg-line-1 { left: 20%; }
 .bg-line-2 { right: 20%; }
 
-/* ============================================================
-   WRAPPER (login & register)
-   ============================================================ */
+/* ── Centrado de página ── */
 .page-center {
   display: flex;
   align-items: center;
@@ -83,6 +70,7 @@ a:hover { text-decoration: underline; }
   position: relative;
 }
 
+/* ── Wrapper ── */
 .wrapper {
   display: flex;
   border-radius: 28px;
@@ -92,108 +80,22 @@ a:hover { text-decoration: underline; }
   z-index: 1;
   animation: fadeUp 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
-
-.wrapper-login    { width: 900px; min-height: 560px; }
-.wrapper-register { width: 960px; }
+.wrapper-login { width: 500px; min-height: 480px; }
 
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(28px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Panel izquierdo (decorativo) ── */
-.panel-left {
-  background: var(--accent);
-  padding: 56px 48px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  position: relative;
-  overflow: hidden;
-}
-
-.wrapper-login    .panel-left { flex: 1; }
-.wrapper-register .panel-left { width: 340px; flex-shrink: 0; }
-
-.panel-left::before {
-  content: '';
-  position: absolute;
-  width: 300px; height: 300px;
-  border: 1px solid rgba(255,255,255,0.18);
-  border-radius: 50%;
-  bottom: -80px; right: -80px;
-}
-.panel-left::after {
-  content: '';
-  position: absolute;
-  width: 180px; height: 180px;
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 50%;
-  top: 60px; right: 40px;
-}
-
-.brand {
-  font-size: 30px;
-  font-weight: 700;
-  color: #fff;
-  letter-spacing: -0.5px;
-}
-.brand span { opacity: 0.7; font-style: italic; }
-
-.panel-tagline { position: relative; z-index: 1; }
-
-.panel-tagline h2 {
-  font-size: 38px;
-  font-weight: 700;
-  color: #fff;
-  line-height: 1.15;
-  margin-bottom: 14px;
-}
-.panel-tagline h2 em { font-style: italic; opacity: 0.8; }
-
-.panel-tagline p {
-  color: rgba(255,255,255,0.65);
-  font-size: 14px;
-  line-height: 1.7;
-  max-width: 260px;
-}
-
-/* Dots (login) */
-.panel-dots { display: flex; gap: 6px; }
-.dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.35);
-}
-.dot.active { background: #fff; width: 20px; border-radius: 3px; }
-
-/* Steps (register) */
-.steps { display: flex; flex-direction: column; gap: 14px; position: relative; z-index: 1; }
-.step { display: flex; align-items: center; gap: 12px; color: rgba(255,255,255,0.75); font-size: 13px; }
-.step-num {
-  width: 26px; height: 26px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.22);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-/* ── Panel derecho (formulario) ── */
+/* ── Panel formulario ── */
 .panel-right {
   background: var(--card);
   padding: 56px 52px;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  width: 100%;
 }
-
-.wrapper-login    .panel-right { width: 420px; }
-.wrapper-register .panel-right { flex: 1; overflow-y: auto; }
 
 .form-header { margin-bottom: 32px; }
 
@@ -206,7 +108,7 @@ a:hover { text-decoration: underline; }
 
 .form-header p { font-size: 13px; color: var(--muted); }
 
-/* ── Grid formulario (register) ── */
+/* ── Grid (register) ── */
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -245,7 +147,7 @@ a:hover { text-decoration: underline; }
 }
 .field input::placeholder { color: #a8d4d3; }
 
-/* ── Notas ── */
+/* ── Nota informativa ── */
 .info-note {
   grid-column: 1 / -1;
   background: var(--accent-light);
@@ -284,7 +186,7 @@ a:hover { text-decoration: underline; }
   grid-column: 1 / -1;
 }
 
-/* ── Botón principal ── */
+/* ── Botón ── */
 .btn {
   width: 100%;
   padding: 14px;
@@ -320,7 +222,7 @@ a:hover { text-decoration: underline; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ============================================================
-   CHAT APP
+   CHAT
    ============================================================ */
 body.chat-body {
   background: var(--chat-bg);
@@ -453,7 +355,7 @@ body.chat-body {
   margin-top: 2px;
 }
 
-/* ── Chat area ── */
+/* ── Área de chat ── */
 .chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 
 .chat-placeholder {

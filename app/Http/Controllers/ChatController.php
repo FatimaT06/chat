@@ -8,9 +8,16 @@ use Illuminate\Http\Request;
 
 class ChatController extends Controller
 {
+    public function index()
+    {
+        return view('chat.index');
+    }
+
     public function usuarios(Request $request)
     {
-        $usuarios = User::where('id_usuario', '!=', $request->user()->id_usuario)
+        $miId = session('chat_user')['id_usuario'];
+
+        $usuarios = User::where('id_usuario', '!=', $miId)
             ->select('id_usuario', 'nombre', 'apellido_p', 'apellido_m', 'correo')
             ->orderBy('nombre')
             ->get();
@@ -20,7 +27,7 @@ class ChatController extends Controller
 
     public function conversacion(Request $request, $id)
     {
-        $miId = $request->user()->id_usuario;
+        $miId = session('chat_user')['id_usuario'];
 
         User::findOrFail($id);
 
@@ -42,10 +49,12 @@ class ChatController extends Controller
             'mensaje' => 'required|string|max:5000',
         ]);
 
+        $miId = session('chat_user')['id_usuario'];
+
         $destinatario = User::findOrFail($id);
 
         $mensaje = Mensaje::create([
-            'id_emisor'         => $request->user()->id_usuario,
+            'id_emisor'         => $miId,
             'id_receptor'       => $destinatario->id_usuario,
             'contenido_cifrado' => $request->mensaje,
         ]);

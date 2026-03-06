@@ -22,7 +22,6 @@ class AuthController extends Controller
             'fecha_nacimiento' => 'required|date',
         ]);
 
-        // Generar contraseña aleatoria de 8 caracteres
         $passwordPlano = Str::random(8);
 
         $user = User::create([
@@ -34,18 +33,15 @@ class AuthController extends Controller
             'fecha_nacimiento' => $request->fecha_nacimiento,
         ]);
 
-        // Enviar correo con la contraseña generada
         Mail::to($user->correo)->send(
             new BienvenidaMail($user->nombre, $user->correo, $passwordPlano)
         );
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        return response()->json([
-            'mensaje' => 'Usuario registrado. Se envió la contraseña al correo.',
-            'user'    => $user,
-            'token'   => $token,
-        ], 201);
+        session(['chat_token' => $token, 'chat_user' => $user]);
+
+        return redirect()->route('chat');
     }
 
     public function login(Request $request)
@@ -57,26 +53,25 @@ class AuthController extends Controller
 
         $user = User::where('correo', $request->correo)->first();
 
-        if (! $user || ! Hash::check($request->password, $user->password_hash)) {
-            throw ValidationException::withMessages([
-                'correo' => ['Las credenciales son incorrectas.'],
-            ]);
+        if (!$user || !Hash::check($request->password, $user->password_hash)) {
+            return back()->withErrors(['correo' => 'Las credenciales son incorrectas.'])->withInput();
         }
 
         $user->tokens()->delete();
-
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        return response()->json([
-            'user'  => $user,
-            'token' => $token,
-        ]);
+        session(['chat_token' => $token, 'chat_user' => $user]);
+
+        return redirect()->route('chat');
     }
 
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        $user = User::find(session('chat_user')['id_usuario'] ?? null);
+        if ($user) $user->tokens()->delete();
 
-        return response()->json(['mensaje' => 'Sesión cerrada correctamente.']);
+        session()->forget(['chat_token', 'chat_user']);
+
+        return redirect()->route('login');
     }
 }
