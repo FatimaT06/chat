@@ -5,8 +5,13 @@ let lastMsgCount  = 0;
 loadUsers();
 
 async function api(method, path, body = null) {
-  const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
-  const opts    = { method, headers };
+  const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+  const headers = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    'X-CSRF-TOKEN': token
+  };
+  const opts = { method, headers };
   if (body) opts.body = JSON.stringify(body);
   const res  = await fetch(path, opts);
   const data = await res.json();
@@ -186,5 +191,5 @@ function autoResize(el) {
   el.style.height = Math.min(el.scrollHeight, 120) + 'px';
 }
 
-function startPolling() { pollInterval = setInterval(fetchMessages, 3000); }
+function startPolling() { pollInterval = setInterval(fetchMessages, 1000); }
 function stopPolling()  { clearInterval(pollInterval); pollInterval = null; }

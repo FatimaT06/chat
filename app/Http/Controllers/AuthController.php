@@ -67,7 +67,7 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        $user = User::find(session('chat_user')['id_usuario'] ?? null);
+        $user = Usuario::find(session('chat_user')['id_usuario'] ?? null);
         if ($user) $user->tokens()->delete();
 
         session()->forget(['chat_token', 'chat_user']);
