@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
+use App\Models\Usuario;
 use App\Mail\BienvenidaMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -24,7 +24,7 @@ class AuthController extends Controller
 
         $passwordPlano = Str::random(8);
 
-        $user = User::create([
+        $user = Usuario::create([
             'nombre'           => $request->nombre,
             'apellido_p'       => $request->apellido_p,
             'apellido_m'       => $request->apellido_m,
@@ -51,7 +51,7 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $user = User::where('correo', $request->correo)->first();
+        $user = Usuario::where('correo', $request->correo)->first();
 
         if (!$user || !Hash::check($request->password, $user->password_hash)) {
             return back()->withErrors(['correo' => 'Las credenciales son incorrectas.'])->withInput();

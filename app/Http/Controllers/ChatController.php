@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
+use App\Models\Usuario;
 use App\Models\Mensaje;
 use Illuminate\Http\Request;
 
@@ -17,7 +17,7 @@ class ChatController extends Controller
     {
         $miId = session('chat_user')['id_usuario'];
 
-        $usuarios = User::where('id_usuario', '!=', $miId)
+        $usuarios = Usuario::where('id_usuario', '!=', $miId)
             ->select('id_usuario', 'nombre', 'apellido_p', 'apellido_m', 'correo')
             ->orderBy('nombre')
             ->get();
@@ -29,7 +29,7 @@ class ChatController extends Controller
     {
         $miId = session('chat_user')['id_usuario'];
 
-        User::findOrFail($id);
+        Usuario::findOrFail($id);
 
         $mensajes = Mensaje::where(function ($q) use ($miId, $id) {
                 $q->where('id_emisor', $miId)->where('id_receptor', $id);
@@ -51,7 +51,7 @@ class ChatController extends Controller
 
         $miId = session('chat_user')['id_usuario'];
 
-        $destinatario = User::findOrFail($id);
+        $destinatario = Usuario::findOrFail($id);
 
         $mensaje = Mensaje::create([
             'id_emisor'         => $miId,
