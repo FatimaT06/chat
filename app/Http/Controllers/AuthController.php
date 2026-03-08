@@ -32,9 +32,14 @@ class AuthController extends Controller
             'fecha_nacimiento' => $request->fecha_nacimiento,
         ]);
 
-        Mail::to($user->correo)->send(
-            new BienvenidaMail($user->nombre, $user->correo, $passwordPlano)
-        );
+        try {
+            Mail::to($user->correo)->send(
+                new BienvenidaMail($user->nombre, $user->correo, $passwordPlano)
+            );
+        } catch (\Exception $e) {
+            \Log::error('Mail error: ' . $e->getMessage());
+            // El registro continúa aunque falle el correo
+        }
 
         $token = $user->createToken('auth_token')->plainTextToken;
         session(['chat_token' => $token, 'chat_user' => $user->toArray()]);
