@@ -45,10 +45,10 @@
         </div>
 
         <div class="user-item" id="ai-sidebar-item" onclick="openAIChat()">
-          <div class="user-avatar">A</div>
+          <div class="avatar" style="background:rgba(0,206,200,0.2);color:var(--accent);">A</div><!-- class="user-avatar" → "avatar" -->
           <div class="user-info">
             <div class="user-name">Asistente IA</div>
-            <div class="user-last-msg" id="ai-preview">Toca para chatear</div>
+            <div class="user-preview" id="ai-preview">Toca para chatear</div><!-- class="user-last-msg" → "user-preview" -->
           </div>
         </div>
 
@@ -81,10 +81,10 @@
 
         <div id="ai-panel" style="display:none; flex-direction:column; flex:1; overflow:hidden;">
           <div class="chat-header" id="ai-header">
-            <div class="user-avatar" style="width:36px;height:36px;font-size:13px;flex-shrink:0;">A</div>
+            <div class="avatar" style="width:36px;height:36px;font-size:13px;flex-shrink:0;background:rgba(0,206,200,0.2);color:var(--accent);">A</div><!-- class="user-avatar" → "avatar" -->
             <div class="user-info" style="flex:1;">
               <div class="user-name">Asistente IA</div>
-              <div class="user-last-msg" id="ai-status">Gemini Flash</div>
+              <div class="chat-header-status" id="ai-status">Gemini Flash</div><!-- class="user-last-msg" → "chat-header-status" -->
             </div>
           </div>
           <div class="messages" id="ai-messages"></div>
@@ -113,149 +113,6 @@
     const CURRENT_USER_ID = {{ session('chat_user')['id_usuario'] ?? 'null' }};
   </script>
   <script src="{{ asset('chat.js') }}"></script>
-
-  <script>
-    const GEMINI_KEY = 'AIzaSyCh4C94k3B8NsJcNufcjNE0kZK0TFGBmAQ';
-    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_KEY}`;
-
-    let aiHistory = [];
-    let aiWaiting = false;
-    let lastCall  = 0;
-    const MIN_GAP = 5000;
-
-    function openAIChat() {
-      document.getElementById('chat-placeholder').style.display = 'none';
-      document.getElementById('chat-panel').style.display       = 'none';
-      document.getElementById('ai-panel').style.display         = 'flex';
-
-      document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
-      document.getElementById('ai-sidebar-item').classList.add('active');
-      document.getElementById('ai-input').focus();
-
-      if (aiHistory.length === 0) {
-        pushBubble('ai', '¡Hola! Soy tu asistente IA. ¿En qué puedo ayudarte?');
-      }
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      const orig = window.openChat;
-      if (typeof orig === 'function') {
-        window.openChat = function (...args) {
-          document.getElementById('ai-panel').style.display = 'none';
-          document.getElementById('ai-sidebar-item').classList.remove('active');
-          orig.apply(this, args);
-        };
-      }
-    });
-
-    function handleAIKey(e) {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAIMessage(); }
-    }
-
-    async function sendAIMessage() {
-      const input = document.getElementById('ai-input');
-      const text  = input.value.trim();
-      if (!text || aiWaiting) return;
-
-      pushBubble('user', text);
-      setPreview(text);
-      input.value = ''; input.style.height = '';
-      aiHistory.push({ role: 'user', parts: [{ text }] });
-
-      aiWaiting = true;
-      document.getElementById('ai-send-btn').disabled = true;
-      const typingEl = pushTyping();
-
-      const wait = Math.max(0, MIN_GAP - (Date.now() - lastCall));
-      if (wait > 0) {
-        for (let i = Math.ceil(wait / 1000); i > 0; i--) {
-          setStatus(`listo en ${i}s…`);
-          await sleep(1000);
-        }
-      }
-      setStatus('escribiendo…');
-
-      try {
-        const reply = await callGemini(aiHistory);
-        aiHistory.push({ role: 'model', parts: [{ text: reply }] });
-        typingEl.remove();
-        pushBubble('ai', reply);
-        setPreview(reply);
-      } catch (err) {
-        typingEl.remove();
-        aiHistory.pop();
-        pushBubble('ai', err.status === 429
-          ? 'Límite alcanzado. Espera unos segundos e intenta de nuevo.'
-          : 'Error al conectar con Gemini. Revisa tu conexión.');
-      } finally {
-        aiWaiting = false;
-        document.getElementById('ai-send-btn').disabled = false;
-        setStatus('Gemini Flash');
-      }
-    }
-
-    async function callGemini(history, tries = 3, delay = 6000) {
-      lastCall = Date.now();
-      const res = await fetch(GEMINI_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: history })
-      });
-      if (res.status === 429 && tries > 0) {
-        setStatus(`esperando cuota… (${tries})`);
-        await sleep(delay);
-        return callGemini(history, tries - 1, delay + 4000);
-      }
-      if (!res.ok) { const e = new Error(); e.status = res.status; throw e; }
-      const d = await res.json();
-      return d?.candidates?.[0]?.content?.parts?.[0]?.text ?? 'Sin respuesta. Intenta de nuevo.';
-    }
-
-    function pushBubble(role, text) {
-      const c   = document.getElementById('ai-messages');
-      const row = document.createElement('div');
-      
-      row.className = role === 'user' ? 'msg msg-self' : 'msg';
-      
-      const b = document.createElement('div');
-      b.className = 'msg-bubble';
-      
-      const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      
-      b.innerHTML = md(text) + `<div style="font-size: 0.7em; opacity: 0.7; margin-top: 4px;">${timeString}</div>`;
-      
-      row.appendChild(b);
-      c.appendChild(row);
-      c.scrollTop = c.scrollHeight;
-      return row;
-    }
-
-    function pushTyping() {
-      const c   = document.getElementById('ai-messages');
-      const row = document.createElement('div');
-      row.className = 'msg';
-      row.innerHTML = `<div class="msg-bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>`;
-      c.appendChild(row);
-      c.scrollTop = c.scrollHeight;
-      return row;
-    }
-
-    function md(t) {
-      return t
-        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-        .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
-        .replace(/\*(.*?)\*/g,'<em>$1</em>')
-        .replace(/`([^`]+)`/g,'<code style="background:rgba(255,255,255,0.12);padding:1px 5px;border-radius:4px;font-size:12px">$1</code>')
-        .replace(/\n/g,'<br>');
-    }
-
-    function setPreview(t) {
-      const s = t.replace(/\n/g,' ').slice(0,46);
-      document.getElementById('ai-preview').textContent = s.length < t.length ? s+'…' : s;
-    }
-    function setStatus(t) { document.getElementById('ai-status').textContent = t; }
-    function sleep(ms)    { return new Promise(r => setTimeout(r, ms)); }
-  </script>
 
 </body>
 </html>
