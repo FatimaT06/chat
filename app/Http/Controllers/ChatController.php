@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Usuario;
 use App\Models\Mensaje;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class ChatController extends Controller
 {
@@ -13,14 +14,17 @@ class ChatController extends Controller
         return view('chat.index');
     }
 
-    public function usuarios(Request $request)
+    public function usuarios()
     {
         $miId = session('chat_user')['id_usuario'];
 
-        $usuarios = Usuario::where('id_usuario', '!=', $miId)
-            ->select('id_usuario', 'nombre', 'apellido_p', 'apellido_m', 'correo')
-            ->orderBy('nombre')
-            ->get();
+        // Cache de usuarios por 60 segundos
+        $usuarios = Cache::remember("usuarios_lista_{$miId}", 60, function () use ($miId) {
+            return Usuario::where('id_usuario', '!=', $miId)
+                ->select('id_usuario', 'nombre', 'apellido_p', 'apellido_m', 'correo')
+                ->orderBy('nombre')
+                ->get();
+        });
 
         return response()->json($usuarios);
     }
@@ -29,8 +33,7 @@ class ChatController extends Controller
     {
         $miId = session('chat_user')['id_usuario'];
 
-        Usuario::findOrFail($id);
-
+        // Solo traer los últimos 50 mensajes
         $mensajes = Mensaje::where(function ($q) use ($miId, $id) {
                 $q->where('id_emisor', $miId)->where('id_receptor', $id);
             })
@@ -38,7 +41,8 @@ class ChatController extends Controller
                 $q->where('id_emisor', $id)->where('id_receptor', $miId);
             })
             ->orderBy('fecha_envio', 'asc')
-            ->get();
+            ->limit(50)
+            ->get(['id_mensaje', 'id_emisor', 'id_receptor', 'contenido_cifrado', 'fecha_envio']);
 
         return response()->json($mensajes);
     }
@@ -51,11 +55,9 @@ class ChatController extends Controller
 
         $miId = session('chat_user')['id_usuario'];
 
-        $destinatario = Usuario::findOrFail($id);
-
         $mensaje = Mensaje::create([
             'id_emisor'         => $miId,
-            'id_receptor'       => $destinatario->id_usuario,
+            'id_receptor'       => (int) $id,
             'contenido_cifrado' => $request->mensaje,
         ]);
 

@@ -8,7 +8,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
@@ -33,13 +32,13 @@ class AuthController extends Controller
             'fecha_nacimiento' => $request->fecha_nacimiento,
         ]);
 
-        Mail::to($user->correo)->send(
+        // Enviar correo en segundo plano para no bloquear la respuesta
+        Mail::to($user->correo)->queue(
             new BienvenidaMail($user->nombre, $user->correo, $passwordPlano)
         );
 
         $token = $user->createToken('auth_token')->plainTextToken;
-
-        session(['chat_token' => $token, 'chat_user' => $user]);
+        session(['chat_token' => $token, 'chat_user' => $user->toArray()]);
 
         return redirect()->route('chat');
     }
@@ -51,7 +50,10 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $user = Usuario::where('correo', $request->correo)->first();
+        // Solo traer los campos necesarios
+        $user = Usuario::where('correo', $request->correo)
+            ->select('id_usuario', 'nombre', 'apellido_p', 'apellido_m', 'correo', 'password_hash')
+            ->first();
 
         if (!$user || !Hash::check($request->password, $user->password_hash)) {
             return back()->withErrors(['correo' => 'Las credenciales son incorrectas.'])->withInput();
@@ -59,19 +61,17 @@ class AuthController extends Controller
 
         $user->tokens()->delete();
         $token = $user->createToken('auth_token')->plainTextToken;
-
-        session(['chat_token' => $token, 'chat_user' => $user]);
+        session(['chat_token' => $token, 'chat_user' => $user->toArray()]);
 
         return redirect()->route('chat');
     }
 
-    public function logout(Request $request)
+    public function logout()
     {
         $user = Usuario::find(session('chat_user')['id_usuario'] ?? null);
         if ($user) $user->tokens()->delete();
 
-        session()->forget(['chat_token', 'chat_user']);
-
+        session()->flush();
         return redirect()->route('login');
     }
 }

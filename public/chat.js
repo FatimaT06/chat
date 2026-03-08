@@ -1,6 +1,10 @@
 let currentChatId = null;
-let pollInterval  = null;
-let lastMsgCount  = 0;
+let pollTimeout = null;
+let lastMsgCount = 0;
+let pendingMessages = new Map(); // chatId -> [{tempId, element, text}]
+let isFetching = false; // Para evitar peticiones simultáneas
+let lastFetchTime = 0;
+let activeChatId = null; // Para controlar cambios de chat
 
 loadUsers();
 
@@ -13,7 +17,8 @@ async function api(method, path, body = null) {
   };
   const opts = { method, headers };
   if (body) opts.body = JSON.stringify(body);
-  const res  = await fetch(path, opts);
+  
+  const res = await fetch(path, opts);
   const data = await res.json();
   if (!res.ok) throw data;
   return data;
@@ -64,19 +69,18 @@ function renderUserList(users) {
   list.innerHTML = '';
 
   if (!users.length) {
-    list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--chat-muted);font-size:13px;">No hay otros usuarios</div>';
+    list.innerHTML = '<div style="padding:20px;text-align:center;color:#666;font-size:13px;">No hay otros usuarios</div>';
     return;
   }
 
   users.forEach(u => {
-    const div      = document.createElement('div');
-    div.className  = 'user-item';
+    const div = document.createElement('div');
+    div.className = 'user-item';
     div.dataset.id = u.id_usuario;
-    div.onclick    = () => openChat(u);
-    div.innerHTML  = `
+    div.onclick = () => openChat(u);
+    div.innerHTML = `
       <div class="avatar">
         ${avatarLetter(u.nombre)}
-        <div class="avatar-dot"></div>
       </div>
       <div class="user-info">
         <div class="user-name">${escHtml(u.nombre + ' ' + u.apellido_p)}</div>
@@ -87,61 +91,160 @@ function renderUserList(users) {
 }
 
 async function openChat(user) {
+  // Detener polling anterior inmediatamente
   stopPolling();
+  
+  // Marcar que cambiamos de chat
+  activeChatId = user.id_usuario;
   currentChatId = user.id_usuario;
-  lastMsgCount  = 0;
+  lastMsgCount = 0;
+  isFetching = false;
 
+  // Resaltar usuario activo
   document.querySelectorAll('.user-item').forEach(el => {
     el.classList.toggle('active', el.dataset.id == user.id_usuario);
   });
 
+  // Mostrar panel de chat
   document.getElementById('chat-placeholder').style.display = 'none';
   const panel = document.getElementById('chat-panel');
   panel.style.display = 'flex';
 
+  // Actualizar header
   document.getElementById('chat-header').innerHTML = `
     <div class="avatar" style="width:36px;height:36px;font-size:14px">
       ${avatarLetter(user.nombre)}
     </div>
     <div>
       <div class="chat-header-name">${escHtml(user.nombre + ' ' + user.apellido_p)}</div>
-      <div class="chat-header-status">● En línea</div>
+      <div class="chat-header-status">Conectado</div>
     </div>`;
 
-  document.getElementById('messages').innerHTML = '<div class="loading-msgs">Cargando...</div>';
-  document.getElementById('chat-input').value   = '';
+  // Limpiar mensajes y mostrar loading
+  document.getElementById('messages').innerHTML = '<div class="loading-msgs">Cargando mensajes...</div>';
+  document.getElementById('chat-input').value = '';
 
+  // Inicializar pending messages para este chat
+  if (!pendingMessages.has(currentChatId)) {
+    pendingMessages.set(currentChatId, []);
+  }
+
+  // Cargar mensajes inmediatamente
   await fetchMessages();
+  
+  // Iniciar polling después de cargar
   startPolling();
 }
 
-async function fetchMessages() {
+// Función para detener polling
+function stopPolling() {
+  if (pollTimeout) {
+    clearTimeout(pollTimeout);
+    pollTimeout = null;
+  }
+}
+
+// Función para iniciar polling
+function startPolling() {
+  schedulePoll();
+}
+
+// Programar siguiente polling
+function schedulePoll() {
   if (!currentChatId) return;
+  
+  // Polling cada 3 segundos (más espaciado para evitar sobrecarga)
+  pollTimeout = setTimeout(async () => {
+    await fetchMessages();
+    schedulePoll();
+  }, 3000);
+}
+
+async function fetchMessages() {
+  // Evitar peticiones simultáneas o si no hay chat activo
+  if (isFetching || !currentChatId) return;
+  
+  // Guardar el chat actual para verificar después
+  const chatIdAtStart = currentChatId;
+  
   try {
-    const res  = await api('GET', `/chat/${currentChatId}`);
+    isFetching = true;
+    
+    const res = await api('GET', `/chat/${chatIdAtStart}`);
+    
+    // Si cambió el chat durante la petición, ignorar
+    if (chatIdAtStart !== currentChatId) return;
+    
     const msgs = Array.isArray(res) ? res : (res.data || []);
+
+    // Verificar mensajes pendientes confirmados
+    const pending = pendingMessages.get(currentChatId) || [];
+    
+    if (pending.length > 0) {
+      pending.forEach(pendingMsg => {
+        // Solo procesar si el elemento aún existe
+        if (!pendingMsg.element || !pendingMsg.element.parentNode) return;
+        
+        const confirmed = msgs.some(m => 
+          m.id_emisor === CURRENT_USER_ID && 
+          m.contenido_cifrado === pendingMsg.text &&
+          Math.abs(new Date(m.fecha_envio) - new Date(pendingMsg.timestamp)) < 10000
+        );
+
+        if (confirmed) {
+          const timeSpan = pendingMsg.element.querySelector('.msg-time');
+          if (timeSpan) {
+            timeSpan.innerHTML = formatTime(pendingMsg.timestamp) + ' ✓✓';
+            pendingMsg.element.classList.remove('pending');
+          }
+          
+          // Eliminar de pendientes
+          pendingMessages.set(currentChatId, pending.filter(p => p.tempId !== pendingMsg.tempId));
+        }
+      });
+    }
+
+    // Solo renderizar si hay mensajes nuevos
     if (msgs.length !== lastMsgCount) {
       lastMsgCount = msgs.length;
       renderMessages(msgs);
+      
+      // Actualizar preview
+      if (msgs.length > 0) {
+        const lastMsg = msgs[msgs.length - 1];
+        const preview = document.getElementById(`preview-${currentChatId}`);
+        if (preview) {
+          preview.textContent = lastMsg.contenido_cifrado || '';
+        }
+      }
     }
   } catch (e) {
-    document.getElementById('messages').innerHTML =
-      '<div class="loading-msgs" style="color:var(--error)">Error al cargar mensajes</div>';
+    // Solo mostrar error si sigue siendo el mismo chat
+    if (chatIdAtStart === currentChatId) {
+      console.error('Error fetching messages:', e);
+    }
+  } finally {
+    // Solo resetear flag si sigue siendo el mismo chat
+    if (chatIdAtStart === currentChatId) {
+      isFetching = false;
+    }
   }
 }
 
 function renderMessages(msgs) {
-  const el       = document.getElementById('messages');
-  const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
-  let html       = '';
-  let lastDate   = '';
+  const container = document.getElementById('messages');
+  const atBottom  = container.scrollHeight - container.scrollTop - container.clientHeight < 60;
+
+  let html     = '';
+  let lastDate = '';
 
   msgs.forEach(m => {
     const isMine    = m.id_emisor === CURRENT_USER_ID;
     const time      = m.fecha_envio || '';
-    const dateLabel = formatDate(time);
     const body      = m.contenido_cifrado || '';
+    const dateLabel = formatDate(time);
 
+    // Separador de fecha si cambió el día
     if (dateLabel && dateLabel !== lastDate) {
       html += `<div class="date-sep">${dateLabel}</div>`;
       lastDate = dateLabel;
@@ -150,32 +253,90 @@ function renderMessages(msgs) {
     html += `
       <div class="msg ${isMine ? 'mine' : 'theirs'}">
         ${escHtml(body)}
-        <span class="msg-time">${formatTime(time)}</span>
+        <span class="msg-time">${formatTime(time)} ${isMine ? '✓✓' : ''}</span>
       </div>`;
   });
 
-  el.innerHTML = html ||
-    '<div class="loading-msgs">Sin mensajes aún. ¡Sé el primero en escribir!</div>';
+  const pending = pendingMessages.get(currentChatId) || [];
 
-  if (atBottom) el.scrollTop = el.scrollHeight;
+  if (!html && pending.length === 0) {
+    html = '<div class="loading-msgs">No hay mensajes aún. ¡Escribe el primero!</div>';
+  }
+
+  container.innerHTML = html;
+  if (atBottom) container.scrollTop = container.scrollHeight;
 }
 
 async function sendMessage() {
   const input = document.getElementById('chat-input');
-  const text  = input.value.trim();
+  const text = input.value.trim();
+  
   if (!text || !currentChatId) return;
 
-  input.value        = '';
+  // Guardar referencia al chat actual
+  const chatIdAtSend = currentChatId;
+
+  // 1. LIMPIAR INPUT INMEDIATAMENTE
+  input.value = '';
   input.style.height = 'auto';
 
+  // 2. MOSTRAR MENSAJE INMEDIATAMENTE
+  const container = document.getElementById('messages');
+  
+  const tempId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+  const timestamp = new Date().toISOString();
+  
+  const msgDiv = document.createElement('div');
+  msgDiv.className = 'msg mine pending';
+  msgDiv.dataset.tempId = tempId;
+  msgDiv.innerHTML = `
+    ${escHtml(text)}
+    <span class="msg-time">${formatTime(timestamp)} ✓</span>
+  `;
+  container.appendChild(msgDiv);
+  container.scrollTop = container.scrollHeight;
+
+  // Guardar pendiente
+  if (!pendingMessages.has(currentChatId)) {
+    pendingMessages.set(currentChatId, []);
+  }
+  
+  pendingMessages.get(currentChatId).push({
+    tempId: tempId,
+    element: msgDiv,
+    text: text,
+    timestamp: timestamp
+  });
+
+  // 3. ENVIAR AL SERVIDOR
   try {
     await api('POST', `/chat/${currentChatId}`, { mensaje: text });
-    await fetchMessages();
-    const preview = document.getElementById(`preview-${currentChatId}`);
-    if (preview) preview.textContent = text;
+    
+    // Si el chat sigue siendo el mismo
+    if (chatIdAtSend === currentChatId) {
+      // Actualizar preview
+      const preview = document.getElementById(`preview-${currentChatId}`);
+      if (preview) preview.textContent = text;
+      
+      // Verificar confirmación pronto
+      setTimeout(() => {
+        if (chatIdAtSend === currentChatId && !isFetching) {
+          fetchMessages();
+        }
+      }, 800);
+    }
   } catch (e) {
-    toast('No se pudo enviar el mensaje.');
-    input.value = text;
+    // Solo mostrar error si sigue siendo el mismo chat
+    if (chatIdAtSend === currentChatId) {
+      toast('Error al enviar mensaje');
+      msgDiv.classList.add('error');
+      const timeSpan = msgDiv.querySelector('.msg-time');
+      if (timeSpan) timeSpan.innerHTML += ' ⚠';
+      
+      // Eliminar de pendientes
+      const pending = pendingMessages.get(currentChatId) || [];
+      pendingMessages.set(currentChatId, pending.filter(p => p.tempId !== tempId));
+    }
   }
 }
 
@@ -191,5 +352,7 @@ function autoResize(el) {
   el.style.height = Math.min(el.scrollHeight, 120) + 'px';
 }
 
-function startPolling() { pollInterval = setInterval(fetchMessages, 1000); }
-function stopPolling()  { clearInterval(pollInterval); pollInterval = null; }
+// Limpiar todo al cerrar
+window.addEventListener('beforeunload', () => {
+  stopPolling();
+});
