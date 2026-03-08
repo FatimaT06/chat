@@ -217,8 +217,8 @@ function stopPolling() {
 //  IA GEMINI
 // ──────────────────────────────────────────────
 
-const GEMINI_KEY = 'AIzaSyCh4C94k3B8NsJcNufcjNE0kZK0TFGBmAQ';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_KEY}`;
+const GEMINI_KEY = 'AIzaSyA-tCi56Lh1uZJtTP5lK2Z92_EtBPVnZTw';
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_KEY}`;
 
 let aiHistory = [];
 let aiWaiting = false;
