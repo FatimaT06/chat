@@ -18,7 +18,7 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
         h1 {
-            color: #7b5ea7;
+            color: #00CEC8;
             font-size: 24px;
         }
         p {
@@ -27,7 +27,7 @@
         }
         .credenciales {
             background: #f0ebf8;
-            border-left: 4px solid #7b5ea7;
+            border-left: 4px solid #00CEC8;
             border-radius: 8px;
             padding: 16px 20px;
             margin: 24px 0;
@@ -37,7 +37,7 @@
             font-size: 15px;
         }
         .credenciales strong {
-            color: #7b5ea7;
+            color: #00CEC8;
         }
         .footer {
             margin-top: 32px;

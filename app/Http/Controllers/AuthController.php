@@ -32,8 +32,7 @@ class AuthController extends Controller
             'fecha_nacimiento' => $request->fecha_nacimiento,
         ]);
 
-        // Enviar correo en segundo plano para no bloquear la respuesta
-        Mail::to($user->correo)->queue(
+        Mail::to($user->correo)->send(
             new BienvenidaMail($user->nombre, $user->correo, $passwordPlano)
         );
 
@@ -50,7 +49,6 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        // Solo traer los campos necesarios
         $user = Usuario::where('correo', $request->correo)
             ->select('id_usuario', 'nombre', 'apellido_p', 'apellido_m', 'correo', 'password_hash')
             ->first();

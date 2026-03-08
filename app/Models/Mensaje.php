@@ -8,7 +8,7 @@ class Mensaje extends Model
 {
     protected $table      = 'mensajes';
     protected $primaryKey = 'id_mensaje';
-    public $timestamps    = false;        // la tabla no tiene created_at/updated_at
+    public $timestamps    = false;
 
     protected $fillable = [
         'id_emisor',
