@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
+
 class AuthController extends Controller
 {
     public function register(Request $request)
@@ -33,12 +34,11 @@ class AuthController extends Controller
         ]);
 
         try {
-            Mail::to($user->correo)->send(
-                new BienvenidaMail($user->nombre, $user->correo, $passwordPlano)
-            );
-        } catch (\Throwable $e) {  // ← cambia \Exception por \Throwable
+            (new BienvenidaMail($user->nombre, $user->correo, $passwordPlano))->send();
+        } catch (\Throwable $e) {
             \Log::error('Mail error: ' . $e->getMessage());
         }
+
         $token = $user->createToken('auth_token')->plainTextToken;
         session(['chat_token' => $token, 'chat_user' => $user->toArray()]);
 

@@ -49,7 +49,7 @@
             <div class="field">
               <label>Fecha de nacimiento</label>
               <input type="date" name="fecha_nacimiento"
-                value="{{ old('fecha_nacimiento') }}" required />
+                value="{{ old('fecha_nacimiento') }}"  max="2020-12-31" required />
             </div>
 
             <div class="field full">

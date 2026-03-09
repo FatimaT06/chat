@@ -2,38 +2,36 @@
 
 namespace App\Mail;
 
-use Illuminate\Bus\Queueable;
-use Illuminate\Mail\Mailable;
-use Illuminate\Mail\Mailables\Content;
-use Illuminate\Mail\Mailables\Envelope;
-use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Http;
 
-class BienvenidaMail extends Mailable
+class BienvenidaMail
 {
-    use Queueable, SerializesModels;
+    public function __construct(
+        public string $nombre,
+        public string $correo,
+        public string $password
+    ) {}
 
-    public string $nombre;
-    public string $correo;
-    public string $password;
-
-    public function __construct(string $nombre, string $correo, string $password)
+    public function send(): void
     {
-        $this->nombre   = $nombre;
-        $this->correo   = $correo;
-        $this->password = $password;
-    }
-
-    public function envelope(): Envelope
-    {
-        return new Envelope(
-            subject: '¡Bienvenido a A&F Chat! Tus credenciales de acceso',
-        );
-    }
-
-    public function content(): Content
-    {
-        return new Content(
-            view: 'emails.bienvenida',
-        );
+        Http::withHeaders([
+            'api-key' => config('services.brevo.key'),
+            'Content-Type' => 'application/json',
+        ])->post('https://api.brevo.com/v3/smtp/email', [
+            'sender' => [
+                'name'  => 'A&F Chat',
+                'email' => 'fatima.torres061102@gmail.com',
+            ],
+            'to' => [[
+                'email' => $this->correo,
+                'name'  => $this->nombre,
+            ]],
+            'subject' => 'Bienvenido a A&F Chat',
+            'htmlContent' => view('emails.bienvenida', [
+                'nombre'   => $this->nombre,
+                'correo'   => $this->correo,
+                'password' => $this->password,
+            ])->render(),
+        ]);
     }
 }
