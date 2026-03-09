@@ -36,11 +36,9 @@ class AuthController extends Controller
             Mail::to($user->correo)->send(
                 new BienvenidaMail($user->nombre, $user->correo, $passwordPlano)
             );
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {  // ← cambia \Exception por \Throwable
             \Log::error('Mail error: ' . $e->getMessage());
-            // El registro continúa aunque falle el correo
         }
-
         $token = $user->createToken('auth_token')->plainTextToken;
         session(['chat_token' => $token, 'chat_user' => $user->toArray()]);
 
