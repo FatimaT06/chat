@@ -10,40 +10,28 @@ class UsuarioController extends Controller
 {
     public function modificarUsuario(Request $request)
     {
-        $userId = session('chat_user')['id_usuario'];
+        // Obtener ID del usuario actual
+        $userId = auth()->check() ? auth()->user()->id_usuario : session('chat_user')['id_usuario'] ?? null;
+
+        if (!$userId) {
+            if ($request->expectsJson()) {
+                return response()->json(['error' => 'No autenticado'], 401);
+            } else {
+                return redirect()->route('login');
+            }
+        }
 
         $user = Usuario::find($userId);
 
         $request->validate([
-            'nombre' => 'string|max:100',
-            'apellido_p' => 'string|max:100',
-            'apellido_m' => 'string|max:100',
+            'nombre' => 'nullable|string|max:100',
+            'apellido_p' => 'nullable|string|max:100',
+            'apellido_m' => 'nullable|string|max:100',
             'password' => 'nullable|string|min:8|confirmed',
-            'foto' => 'nullable|image|max:2048'
+            'foto' => 'nullable|image|max:2048',
         ]);
 
-        if($request->hasFile('nombre')){
-            $user->nombre = $request->nombre;
-        }
-
-        if($request->hasFile('apellido_p')){
-            $user->apellido_p = $request->apellido_p;
-        }
-
-        if($request->hasFile('apellido_m')){
-            $user->apellido_m = $request->apellido_m;
-        }
-
-        if($request->hasFile('password')){
-            $user->password_hash = Hash::make($request->password);
-
-        }
-        // subir foto
-        if ($request->hasFile('foto')) {
-            $path = $request->file('foto')->store('perfiles', 'public');
-            $user->foto = $path;
-        }
-
+        // Actualizar campos si vienen en la petición
         $user->nombre = $request->nombre ?? $user->nombre;
         $user->apellido_p = $request->apellido_p ?? $user->apellido_p;
         $user->apellido_m = $request->apellido_m ?? $user->apellido_m;
@@ -52,9 +40,25 @@ class UsuarioController extends Controller
             $user->password_hash = Hash::make($request->password);
         }
 
-        $user->save();
-        session(['chat_user' => $user->toArray()]);
+        // Subir foto si viene archivo
+        if ($request->hasFile('foto')) {
+            $path = $request->file('foto')->store('perfiles', 'public');
+            $user->foto = $path;
+        }
 
-        return redirect('/chat')->with('success', 'Perfil actualizado');
+        $user->save();
+
+        // Actualizar sesión web
+        if (! $request->expectsJson()) {
+            session(['chat_user' => $user->toArray()]);
+            return redirect('/chat')->with('success', 'Perfil actualizado');
+        }
+
+        // Para API Flutter, devolver JSON con datos actualizados
+        return response()->json([
+            'success' => true,
+            'user' => $user,
+            'foto_url' => $user->foto ? url(str_replace('public/', 'storage/', $user->foto)) : null
+        ]);
     }
 }
