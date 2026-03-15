@@ -1,10 +1,10 @@
 let currentChatId = null;
 let pollTimeout = null;
 let lastMsgCount = 0;
-let pendingMessages = new Map(); // chatId -> [{tempId, element, text}]
-let isFetching = false; // Para evitar peticiones simultáneas
+let pendingMessages = new Map();
+let isFetching = false;
 let lastFetchTime = 0;
-let activeChatId = null; // Para controlar cambios de chat
+let activeChatId = null;
 
 loadUsers();
 
@@ -65,6 +65,7 @@ async function loadUsers() {
 }
 
 function renderUserList(users) {
+  console.log(users);
   const list = document.getElementById('user-list');
   list.innerHTML = '';
 
@@ -80,7 +81,11 @@ function renderUserList(users) {
     div.onclick = () => openChat(u);
     div.innerHTML = `
       <div class="avatar">
-        ${avatarLetter(u.nombre)}
+        ${
+          u.foto
+          ? `<img src="/storage/${u.foto}" style="width:100%;height:100%;border-radius:50%">`
+          : avatarLetter(u.nombre)
+        }
       </div>
       <div class="user-info">
         <div class="user-name">${escHtml(u.nombre + ' ' + u.apellido_p)}</div>
@@ -91,52 +96,46 @@ function renderUserList(users) {
 }
 
 async function openChat(user) {
-  // Detener polling anterior inmediatamente
   stopPolling();
   
-  // Marcar que cambiamos de chat
   activeChatId = user.id_usuario;
   currentChatId = user.id_usuario;
   lastMsgCount = 0;
   isFetching = false;
 
-  // Resaltar usuario activo
   document.querySelectorAll('.user-item').forEach(el => {
     el.classList.toggle('active', el.dataset.id == user.id_usuario);
   });
 
-  // Mostrar panel de chat
   document.getElementById('chat-placeholder').style.display = 'none';
   const panel = document.getElementById('chat-panel');
   panel.style.display = 'flex';
 
-  // Actualizar header
   document.getElementById('chat-header').innerHTML = `
     <div class="avatar" style="width:36px;height:36px;font-size:14px">
-      ${avatarLetter(user.nombre)}
+      ${
+        user.foto
+        ? `<img src="/storage/${user.foto}" style="width:100%;height:100%;border-radius:50%">`
+        : avatarLetter(user.nombre)
+      }
     </div>
     <div>
       <div class="chat-header-name">${escHtml(user.nombre + ' ' + user.apellido_p)}</div>
       <div class="chat-header-status">Conectado</div>
     </div>`;
 
-  // Limpiar mensajes y mostrar loading
   document.getElementById('messages').innerHTML = '<div class="loading-msgs">Cargando mensajes...</div>';
   document.getElementById('chat-input').value = '';
 
-  // Inicializar pending messages para este chat
   if (!pendingMessages.has(currentChatId)) {
     pendingMessages.set(currentChatId, []);
   }
 
-  // Cargar mensajes inmediatamente
   await fetchMessages();
   
-  // Iniciar polling después de cargar
   startPolling();
 }
 
-// Función para detener polling
 function stopPolling() {
   if (pollTimeout) {
     clearTimeout(pollTimeout);
@@ -144,16 +143,13 @@ function stopPolling() {
   }
 }
 
-// Función para iniciar polling
 function startPolling() {
   schedulePoll();
 }
 
-// Programar siguiente polling
 function schedulePoll() {
   if (!currentChatId) return;
   
-  // Polling cada 3 segundos (más espaciado para evitar sobrecarga)
   pollTimeout = setTimeout(async () => {
     await fetchMessages();
     schedulePoll();
@@ -161,10 +157,8 @@ function schedulePoll() {
 }
 
 async function fetchMessages() {
-  // Evitar peticiones simultáneas o si no hay chat activo
   if (isFetching || !currentChatId) return;
   
-  // Guardar el chat actual para verificar después
   const chatIdAtStart = currentChatId;
   
   try {
@@ -172,17 +166,14 @@ async function fetchMessages() {
     
     const res = await api('GET', `/chat/${chatIdAtStart}`);
     
-    // Si cambió el chat durante la petición, ignorar
     if (chatIdAtStart !== currentChatId) return;
     
     const msgs = Array.isArray(res) ? res : (res.data || []);
 
-    // Verificar mensajes pendientes confirmados
     const pending = pendingMessages.get(currentChatId) || [];
     
     if (pending.length > 0) {
       pending.forEach(pendingMsg => {
-        // Solo procesar si el elemento aún existe
         if (!pendingMsg.element || !pendingMsg.element.parentNode) return;
         
         const confirmed = msgs.some(m => 
@@ -198,7 +189,6 @@ async function fetchMessages() {
             pendingMsg.element.classList.remove('pending');
           }
           
-          // Eliminar de pendientes
           pendingMessages.set(currentChatId, pending.filter(p => p.tempId !== pendingMsg.tempId));
         }
       });
@@ -351,7 +341,6 @@ function autoResize(el) {
   el.style.height = 'auto';
   el.style.height = Math.min(el.scrollHeight, 120) + 'px';
 }
-
 // Limpiar todo al cerrar
 window.addEventListener('beforeunload', () => {
   stopPolling();

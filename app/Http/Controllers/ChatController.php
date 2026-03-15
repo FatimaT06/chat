@@ -21,7 +21,7 @@ class ChatController extends Controller
         // Cache de usuarios por 60 segundos
         $usuarios = Cache::remember("usuarios_lista_{$miId}", 60, function () use ($miId) {
             return Usuario::where('id_usuario', '!=', $miId)
-                ->select('id_usuario', 'nombre', 'apellido_p', 'apellido_m', 'correo')
+                ->select('id_usuario', 'nombre', 'apellido_p', 'apellido_m', 'correo', 'foto')
                 ->orderBy('nombre')
                 ->get();
         });

@@ -30,6 +30,7 @@
       <div class="topbar-logo">A&amp;F Chat</div>
       <div class="topbar-user">
         <span>{{ session('chat_user')['nombre'] ?? '' }}</span>
+        <a href="{{ route('usuario.configuracion') }}" class="config-btn">Configuración</a>
         <form method="POST" action="{{ route('logout') }}" style="margin:0">
           @csrf
           <button class="logout-btn" type="submit">Salir</button>
@@ -115,7 +116,7 @@
   <script src="{{ asset('chat.js') }}"></script>
 
   <script>
-    const GEMINI_KEY = 'AIzaSyCh4C94k3B8NsJcNufcjNE0kZK0TFGBmAQ';
+    const GEMINI_KEY = 'AIzaSyCHcPkPOlLFP10zbJOJfbaPc0KBrUI5jKo';
     const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_KEY}`;
 
     let aiHistory = [];

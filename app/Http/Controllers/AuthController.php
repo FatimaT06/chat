@@ -52,7 +52,7 @@ class AuthController extends Controller
 
         // Solo traer los campos necesarios
         $user = Usuario::where('correo', $request->correo)
-            ->select('id_usuario', 'nombre', 'apellido_p', 'apellido_m', 'correo', 'password_hash')
+            ->select('id_usuario', 'nombre', 'apellido_p', 'apellido_m', 'correo', 'password_hash', 'foto')
             ->first();
 
         if (!$user || !Hash::check($request->password, $user->password_hash)) {
