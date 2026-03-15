@@ -1,3 +1,5 @@
+// chat.js completo con soporte para archivos en IA
+
 let currentChatId = null;
 let pollTimeout = null;
 let lastMsgCount = 0;
@@ -6,46 +8,70 @@ let isFetching = false;
 let lastFetchTime = 0;
 let activeChatId = null;
 
+// Variables para Gemini AI
+const GEMINI_KEY = 'AIzaSyCHcPkPOlLFP10zbJOJfbaPc0KBrUI5jKo';
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_KEY}`;
+
+let aiHistory = [];
+let aiWaiting = false;
+let lastCall  = 0;
+const MIN_GAP = 5000;
+
+// Variable para archivos de IA
+let aiSelectedFile = null;
+
 loadUsers();
+
+// Event listeners para archivos de IA
+document.addEventListener('DOMContentLoaded', () => {
+  const aiFileInput = document.getElementById('ai-chat-file');
+  if (aiFileInput) {
+    aiFileInput.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      aiSelectedFile = file;
+      document.getElementById('ai-file-name').textContent = file.name;
+      document.getElementById('ai-file-preview').style.display = 'flex';
+    });
+  }
+});
 
 const fileInput = document.getElementById("chat-file");
 const filePreview = document.getElementById("file-preview");
 const fileName = document.getElementById("file-name");
 
 fileInput.addEventListener("change", function(){
-
   const file = this.files[0];
   if(!file) return;
-
   fileName.textContent = file.name;
   filePreview.style.display = "flex";
-
 });
 
 function removeFile(){
-
   const fileInput = document.getElementById("chat-file");
   const filePreview = document.getElementById("file-preview");
-
   fileInput.value = "";
   filePreview.style.display = "none";
+}
 
+function removeAIFile() {
+  aiSelectedFile = null;
+  const aiFileInput = document.getElementById('ai-chat-file');
+  if (aiFileInput) aiFileInput.value = '';
+  document.getElementById('ai-file-preview').style.display = 'none';
+  document.getElementById('ai-file-name').textContent = '';
 }
 
 function clearFile(){
-
   const fileInput = document.getElementById("chat-file");
   const filePreview = document.getElementById("file-preview");
   const fileName = document.getElementById("file-name");
 
   if(fileInput) fileInput.value = "";
-
   if(filePreview) filePreview.style.display = "none";
-
   if(fileName) fileName.textContent = "";
-
 }
-
 
 async function api(method, path, body = null) {
   const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
@@ -171,7 +197,6 @@ async function openChat(user) {
   }
 
   await fetchMessages();
-  
   startPolling();
 }
 
@@ -453,7 +478,6 @@ if(!res.ok){
   }
 }
 
-
 function handleInputKey(e) {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
@@ -470,6 +494,246 @@ document.getElementById("chat-file").addEventListener("change", function(){
   const name = this.files[0]?.name || "";
   document.getElementById("file-name").textContent = name;
 });
+
+// Funciones de Gemini AI
+function openAIChat() {
+  document.getElementById('chat-placeholder').style.display = 'none';
+  document.getElementById('chat-panel').style.display       = 'none';
+  document.getElementById('ai-panel').style.display         = 'flex';
+
+  document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('ai-sidebar-item').classList.add('active');
+  document.getElementById('ai-input').focus();
+  removeAIFile(); // Limpiar archivos al abrir
+
+  if (aiHistory.length === 0) {
+    pushBubble('ai', '¡Hola! Soy tu asistente IA. ¿En qué puedo ayudarte?');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const orig = window.openChat;
+  if (typeof orig === 'function') {
+    window.openChat = function (...args) {
+      document.getElementById('ai-panel').style.display = 'none';
+      document.getElementById('ai-sidebar-item').classList.remove('active');
+      orig.apply(this, args);
+    };
+  }
+});
+
+function handleAIKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAIMessage(); }
+}
+
+// Función para leer archivos
+async function readFileContent(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    
+    // Para imágenes, convertir a base64
+    if (file.type.startsWith('image/')) {
+      reader.onload = () => resolve({
+        type: 'image',
+        name: file.name,
+        data: reader.result,
+        mime: file.type
+      });
+      reader.readAsDataURL(file);
+    }
+    // Para archivos de texto
+    else if (file.type.startsWith('text/') || 
+             file.name.endsWith('.txt') || 
+             file.name.endsWith('.js') || 
+             file.name.endsWith('.html') || 
+             file.name.endsWith('.css') || 
+             file.name.endsWith('.json') ||
+             file.name.endsWith('.md')) {
+      reader.onload = () => resolve({
+        type: 'text',
+        name: file.name,
+        content: reader.result
+      });
+      reader.readAsText(file);
+    }
+    // Para PDFs
+    else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+      resolve({
+        type: 'pdf',
+        name: file.name,
+        size: file.size
+      });
+    }
+    // Para otros archivos
+    else {
+      resolve({
+        type: 'other',
+        name: file.name,
+        size: file.size,
+        mime: file.type
+      });
+    }
+  });
+}
+
+// Modificar la función sendAIMessage para manejar archivos
+async function sendAIMessage() {
+  const input = document.getElementById('ai-input');
+  const text = input.value.trim();
+  const file = aiSelectedFile;
+
+  if ((!text && !file) || aiWaiting) return;
+
+  let messageText = text || '';
+  let fileInfo = '';
+
+  // Procesar archivo si existe
+  if (file) {
+    try {
+      const fileData = await readFileContent(file);
+      
+      switch(fileData.type) {
+        case 'text':
+          fileInfo = `📄 Archivo: ${file.name}\nContenido:\n${fileData.content}\n\n`;
+          pushBubble('user', `📄 ${file.name}\n${text || ''}`);
+          break;
+          
+        case 'image':
+          fileInfo = `🖼️ Imagen: ${file.name}\n`;
+          pushBubble('user', `🖼️ ${file.name}\n${text || ''}`);
+          break;
+          
+        case 'pdf':
+          fileInfo = `📑 PDF: ${file.name} (${(fileData.size/1024).toFixed(2)} KB)\n`;
+          pushBubble('user', `📑 ${file.name}\n${text || ''}`);
+          break;
+          
+        default:
+          fileInfo = `📎 Archivo: ${file.name} (${(fileData.size/1024).toFixed(2)} KB, ${fileData.mime})\n`;
+          pushBubble('user', `📎 ${file.name}\n${text || ''}`);
+      }
+      
+    } catch (error) {
+      console.error('Error leyendo archivo:', error);
+      fileInfo = `📎 Archivo: ${file.name}\n`;
+      pushBubble('user', `📎 ${file.name}\n${text || ''}`);
+    }
+  } else {
+    pushBubble('user', text);
+  }
+
+  // Combinar texto y archivo para el prompt
+  const fullPrompt = fileInfo + (text || '');
+  setPreview(text || file.name);
+  
+  input.value = '';
+  input.style.height = 'auto';
+  removeAIFile();
+
+  aiHistory.push({ role: 'user', parts: [{ text: fullPrompt }] });
+
+  aiWaiting = true;
+  document.getElementById('ai-send-btn').disabled = true;
+  const typingEl = pushTyping();
+
+  const wait = Math.max(0, MIN_GAP - (Date.now() - lastCall));
+  if (wait > 0) {
+    for (let i = Math.ceil(wait / 1000); i > 0; i--) {
+      setStatus(`listo en ${i}s…`);
+      await sleep(1000);
+    }
+  }
+  setStatus('escribiendo…');
+
+  try {
+    const reply = await callGemini(aiHistory);
+    aiHistory.push({ role: 'model', parts: [{ text: reply }] });
+    typingEl.remove();
+    pushBubble('ai', reply);
+    setPreview(reply);
+  } catch (err) {
+    typingEl.remove();
+    aiHistory.pop();
+    pushBubble('ai', err.status === 429
+      ? 'Límite alcanzado. Espera unos segundos e intenta de nuevo.'
+      : 'Error al conectar con Gemini. Revisa tu conexión.');
+  } finally {
+    aiWaiting = false;
+    document.getElementById('ai-send-btn').disabled = false;
+    setStatus('Gemini Flash');
+  }
+}
+
+async function callGemini(history, tries = 3, delay = 6000) {
+  lastCall = Date.now();
+  const res = await fetch(GEMINI_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contents: history })
+  });
+  if (res.status === 429 && tries > 0) {
+    setStatus(`esperando cuota… (${tries})`);
+    await sleep(delay);
+    return callGemini(history, tries - 1, delay + 4000);
+  }
+  if (!res.ok) { const e = new Error(); e.status = res.status; throw e; }
+  const d = await res.json();
+  return d?.candidates?.[0]?.content?.parts?.[0]?.text ?? 'Sin respuesta. Intenta de nuevo.';
+}
+
+function pushBubble(role, text) {
+  const c = document.getElementById('ai-messages');
+  const row = document.createElement('div');
+  
+  // Usar las mismas clases que el chat normal
+  row.className = role === 'user' ? 'msg mine' : 'msg theirs';
+  
+  const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  
+  // Usar la misma estructura que el chat normal
+  row.innerHTML = `
+    ${md(text)}
+    <span class="msg-time">${timeString} ${role === 'user' ? '✓✓' : ''}</span>
+  `;
+  
+  c.appendChild(row);
+  c.scrollTop = c.scrollHeight;
+  return row;
+}
+
+function pushTyping() {
+  const c = document.getElementById('ai-messages');
+  const row = document.createElement('div');
+  row.className = 'msg theirs';
+  row.innerHTML = `
+    <div class="typing-dots">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+  `;
+  c.appendChild(row);
+  c.scrollTop = c.scrollHeight;
+  return row;
+}
+
+function md(t) {
+  return t
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g,'<em>$1</em>')
+    .replace(/`([^`]+)`/g,'<code style="background:rgba(255,255,255,0.12);padding:1px 5px;border-radius:4px;font-size:12px">$1</code>')
+    .replace(/\n/g,'<br>');
+}
+
+function setPreview(t) {
+  const s = t.replace(/\n/g,' ').slice(0,46);
+  document.getElementById('ai-preview').textContent = s.length < t.length ? s+'…' : s;
+}
+
+function setStatus(t) { document.getElementById('ai-status').textContent = t; }
+function sleep(ms)    { return new Promise(r => setTimeout(r, ms)); }
+
 // Limpiar todo al cerrar
 window.addEventListener('beforeunload', () => {
   stopPolling();
