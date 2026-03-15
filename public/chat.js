@@ -231,20 +231,44 @@ function renderMessages(msgs) {
   msgs.forEach(m => {
     const isMine    = m.id_emisor === CURRENT_USER_ID;
     const time      = m.fecha_envio || '';
-    const body      = m.contenido_cifrado || '';
     const dateLabel = formatDate(time);
 
+    let content = '';
+    if (m.contenido_cifrado) {
+      content += escHtml(m.contenido_cifrado);
+    }
     // Separador de fecha si cambió el día
     if (dateLabel && dateLabel !== lastDate) {
       html += `<div class="date-sep">${dateLabel}</div>`;
       lastDate = dateLabel;
     }
+    if (m.archivo) {
 
+      const ext = m.archivo.split('.').pop().toLowerCase();
+      const url = "/storage/" + m.archivo;
+
+      if (['jpg','jpeg','png','gif','webp'].includes(ext)) {
+        content += `
+          <div class="msg-img">
+            <img src="${url}" style="max-width:200px;border-radius:8px;margin-top:5px;">
+          </div>
+        `;
+      } else {
+        content += `
+        <div class="msg-file">
+          <div class="file-icon">📎</div>
+          <div class="file-info">
+            <div class="file-name">${m.archivo.split('/').pop()}</div>
+            <a href="${url}" target="_blank" class="file-download">Descargar</a>
+          </div>
+        </div>`;
+      }
+    }
     html += `
-      <div class="msg ${isMine ? 'mine' : 'theirs'}">
-        ${escHtml(body)}
-        <span class="msg-time">${formatTime(time)} ${isMine ? '✓✓' : ''}</span>
-      </div>`;
+    <div class="msg ${isMine ? 'mine' : 'theirs'}">
+      ${content}
+      <span class="msg-time">${formatTime(time)} ${isMine ? '✓✓' : ''}</span>
+    </div>`;
   });
 
   const pending = pendingMessages.get(currentChatId) || [];
@@ -260,8 +284,11 @@ function renderMessages(msgs) {
 async function sendMessage() {
   const input = document.getElementById('chat-input');
   const text = input.value.trim();
-  
-  if (!text || !currentChatId) return;
+  const file = document.getElementById('chat-file').files[0];
+  input.value = '';
+  input.style.height = 'auto';
+  document.getElementById('chat-file').value = '';
+  if ((!text && !file) || !currentChatId) return;
 
   // Guardar referencia al chat actual
   const chatIdAtSend = currentChatId;
@@ -279,8 +306,36 @@ async function sendMessage() {
   const msgDiv = document.createElement('div');
   msgDiv.className = 'msg mine pending';
   msgDiv.dataset.tempId = tempId;
+  let content = '';
+  if (text) {
+    content += escHtml(text);
+  }
+if (file) {
+
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  if (['jpg','jpeg','png','gif','webp'].includes(ext)) {
+
+    const preview = URL.createObjectURL(file);
+
+    content += `
+      <div class="msg-img">
+        <img src="${preview}" style="max-width:200px;border-radius:8px;">
+      </div>
+    `;
+
+  } else {
+
+    content += `
+      <div class="msg-file">
+        📎 ${file.name}
+      </div>
+    `;
+
+  }
+}
   msgDiv.innerHTML = `
-    ${escHtml(text)}
+    ${content}
     <span class="msg-time">${formatTime(timestamp)} ✓</span>
   `;
   container.appendChild(msgDiv);
@@ -300,7 +355,18 @@ async function sendMessage() {
 
   // 3. ENVIAR AL SERVIDOR
   try {
-    await api('POST', `/chat/${currentChatId}`, { mensaje: text });
+    const formData = new FormData();
+    formData.append("mensaje", text);
+    formData.append("archivo", file);
+
+    await fetch(`/chat/${currentChatId}`, {
+      method: "POST",
+      headers: {
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+      },
+      body: formData
+    });
+
     
     // Si el chat sigue siendo el mismo
     if (chatIdAtSend === currentChatId) {

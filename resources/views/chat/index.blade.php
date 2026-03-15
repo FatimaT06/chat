@@ -74,6 +74,10 @@
               onkeydown="handleInputKey(event)"
               oninput="autoResize(this)">
             </textarea>
+            <label class="file-btn">
+            +
+            <input type="file" id="chat-file">
+            </label>
             <button class="send-btn" onclick="sendMessage()">
               <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
             </button>

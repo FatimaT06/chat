@@ -31,7 +31,6 @@
       <p>Modifica tu información de perfil</p>
     </div>
 
-    <!-- FOTO ACTUAL -->
     <div style="display:flex; justify-content:center; margin:25px 0;">
       @if(session('chat_user')['foto'] ?? false)
         <img src="{{ asset('storage/' . session('chat_user')['foto']) }}"
@@ -76,7 +75,11 @@
 
       <div class="field">
         <label>Cambiar foto</label>
-        <input type="file" name="foto">
+        <label class="file-btn">
+            Seleccionar imagen
+            <input type="file" name="foto" id="foto" accept="image/*">
+        </label>
+        <div id="file-name" style="font-size:12px;margin-top:6px;color:var(--muted);"></div>
       </div>
 
       <div style="margin:25px 0 10px; font-size:13px; color:var(--muted); font-weight:600;">
@@ -104,6 +107,13 @@
 </div>
 
     </div>
+    <script>
+        document.getElementById("foto").addEventListener("change", function(){
+            const name = this.files[0]?.name || "";
+            document.getElementById("file-name").textContent = name;
+        });
+    </script>
+
 </body>
 </html> 
     

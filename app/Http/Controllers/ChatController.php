@@ -42,7 +42,7 @@ class ChatController extends Controller
             })
             ->orderBy('fecha_envio', 'asc')
             ->limit(50)
-            ->get(['id_mensaje', 'id_emisor', 'id_receptor', 'contenido_cifrado', 'fecha_envio']);
+            ->get(['id_mensaje', 'id_emisor', 'id_receptor', 'contenido_cifrado', 'fecha_envio', 'archivo']);
 
         return response()->json($mensajes);
     }
@@ -51,14 +51,23 @@ class ChatController extends Controller
     {
         $request->validate([
             'mensaje' => 'required|string|max:5000',
+            'archivo' => 'nullable|file|max:10240'
         ]);
 
         $miId = session('chat_user')['id_usuario'];
+        $archivoPath = null;
+        $archivo = $request->file('archivo');
+        $nombre = $archivo->getClientOriginalName();
+
+        if ($request->hasFile('archivo')){
+            $archivoPath = $archivo->storeAs('chat', $nombre, 'public');
+        }
 
         $mensaje = Mensaje::create([
             'id_emisor'         => $miId,
             'id_receptor'       => (int) $id,
             'contenido_cifrado' => $request->mensaje,
+            'archivo'           => $archivoPath,
         ]);
 
         return response()->json($mensaje, 201);

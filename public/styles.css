@@ -548,3 +548,82 @@ body.chat-body {
   overflow: visible;
 }
 
+.custom-file {
+  position: relative;
+  display: inline-block;
+}
+
+.file-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:10px 14px;
+  background:var(--accent);
+  color:white;
+  border-radius:8px;
+  font-size:13px;
+  font-weight:500;
+  cursor:pointer;
+  transition:all 0.2s;
+  width:fit-content;
+}
+
+.file-btn:hover{
+  background:var(--accent-dark);
+}
+
+.file-btn input{
+  display:none;
+}
+
+.msg-img img{
+  max-width:200px;
+  border-radius:10px;
+  margin-top:5px;
+  cursor:pointer;
+  transition:0.2s;
+}
+
+.msg-img img:hover{
+  transform:scale(1.05);
+}
+
+.msg-file{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:6px;
+  padding:8px 10px;
+  border-radius:10px;
+  background:rgba(255,255,255,0.15);
+  max-width:220px;
+}
+
+.mine .msg-file{
+  background:rgba(255,255,255,0.25);
+}
+
+.file-icon{
+  font-size:20px;
+}
+
+.file-info{
+  display:flex;
+  flex-direction:column;
+  font-size:12px;
+}
+
+.file-name{
+  font-weight:500;
+  word-break:break-all;
+}
+
+.file-download{
+  font-size:11px;
+  opacity:0.8;
+  text-decoration:none;
+}
+
+.file-download:hover{
+  text-decoration:underline;
+}
