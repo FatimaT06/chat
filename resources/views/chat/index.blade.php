@@ -65,23 +65,31 @@
         <div id="chat-panel" style="display:none; flex-direction:column; flex:1; overflow:hidden;">
           <div class="chat-header" id="chat-header"></div>
           <div class="messages" id="messages"></div>
-          <div class="chat-input-row">
-            <div id="file-name" style="font-size:12px;margin-top:6px;color:var(--muted);"></div>
-            <textarea
-              class="chat-input"
-              id="chat-input"
-              rows="1"
-              placeholder="Escribe un mensaje..."
-              onkeydown="handleInputKey(event)"
-              oninput="autoResize(this)">
-            </textarea>
-            <label class="file-icon" for="chat-file">
-            <img src="{{ asset('storage/foto/clip.png') }}" style="width:18px; height:23px; filter:invert(1);">
-            <input type="file" id="chat-file">
-            </label>
-            <button class="send-btn" onclick="sendMessage()">
-              <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-            </button>
+          <div class="chat-input-container">
+            <div id="file-preview" class="file-preview" style="display:none;">
+              <span class="file-preview-icon">
+                <img src="{{ asset('storage/foto/clip.png') }}" style="width:15px; height:15px; filter:invert(1);">
+              </span>
+              <span id="file-name"></span>
+              <button type="button" class="remove-file" onclick="removeFile()">✕</button>
+            </div>
+            <div class="chat-input-row">
+              <textarea
+                class="chat-input"
+                id="chat-input"
+                rows="1"
+                placeholder="Escribe un mensaje..."
+                onkeydown="handleInputKey(event)"
+                oninput="autoResize(this)">
+              </textarea>
+              <label class="file-icon" for="chat-file">
+                <img src="{{ asset('storage/foto/clip.png') }}" style="width:18px; height:23px; filter:invert(1);">
+                <input type="file" id="chat-file">
+              </label>
+              <button class="send-btn" onclick="sendMessage()">
+                <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+              </button>
+            </div>
           </div>
         </div>
 

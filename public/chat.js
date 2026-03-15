@@ -8,6 +8,30 @@ let activeChatId = null;
 
 loadUsers();
 
+const fileInput = document.getElementById("chat-file");
+const filePreview = document.getElementById("file-preview");
+const fileName = document.getElementById("file-name");
+
+fileInput.addEventListener("change", function(){
+
+  const file = this.files[0];
+  if(!file) return;
+
+  fileName.textContent = file.name;
+  filePreview.style.display = "flex";
+
+});
+
+function removeFile(){
+
+  const fileInput = document.getElementById("chat-file");
+  const filePreview = document.getElementById("file-preview");
+
+  fileInput.value = "";
+  filePreview.style.display = "none";
+
+}
+
 async function api(method, path, body = null) {
   const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
   const headers = {
@@ -256,10 +280,12 @@ function renderMessages(msgs) {
       } else {
         content += `
         <div class="msg-file">
-          <div class="file-icon">📎</div>
+          <div class="file-icon">
+            <img src="/storage/foto/clip.png" style="width:15px; height:15px; filter:invert(1);">
+          </div>
           <div class="file-info">
             <div class="file-name">${m.archivo.split('/').pop()}</div>
-            <a href="${url}" target="_blank" class="file-download">Descargar</a>
+            <a href="${url}" target="_blank" class="file-download" style="color:var(--primary); text-decoration:underline;">Descargar</a>
           </div>
         </div>`;
       }
@@ -328,7 +354,7 @@ if (file) {
 
     content += `
       <div class="msg-file">
-        📎 ${file.name}
+        <img src="/storage/foto/clip.png" style="width:15px; height:15px;  filter:invert(1);"> ${file.name}
       </div>
     `;
 
