@@ -88,12 +88,15 @@
 
       <div class="field">
         <label>Nueva contraseña</label>
-        <input type="password" name="password">
+        <input type="password"  id="password" name="password" minlength="8">
       </div>
 
       <div class="field">
         <label>Confirmar contraseña</label>
-        <input type="password" name="password_confirmation">
+        <input type="password" id="password_confirmation" name="password_confirmation" minlength="8">
+        <div id="password-error" style="color:#ef4444;font-size:12px;margin-top:4px;display:none;">
+          Las contraseñas no coinciden
+        </div>
       </div>
 
       <button class="btn" type="submit">
@@ -107,13 +110,7 @@
 </div>
 
     </div>
-    <script>
-        document.getElementById("foto").addEventListener("change", function(){
-            const name = this.files[0]?.name || "";
-            document.getElementById("file-name").textContent = name;
-        });
-    </script>
-
+    <script src="{{ asset('actualizarPerfil.js') }}"></script>
 </body>
 </html> 
     

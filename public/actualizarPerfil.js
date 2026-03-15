@@ -1,3 +1,39 @@
+document.addEventListener("DOMContentLoaded", function(){
+
+    const pass = document.getElementById("password");
+    const confirmPass = document.getElementById("password_confirmation");
+    const error = document.getElementById("password-error");
+
+    if(!pass || !confirmPass) return;
+
+    function checkPasswords(){
+
+        if(confirmPass.value === ""){
+        error.style.display = "none";
+        confirmPass.style.borderColor = "";
+        return;
+        }
+
+        if(pass.value !== confirmPass.value){
+        error.style.display = "block";
+        confirmPass.style.borderColor = "#ef4444";
+        }else{
+        error.style.display = "none";
+        confirmPass.style.borderColor = "#10b981";
+        }
+
+    }
+
+    pass.addEventListener("input", checkPasswords);
+    confirmPass.addEventListener("input", checkPasswords);
+
+});
+
+document.getElementById("foto").addEventListener("change", function(){
+    const name = this.files[0]?.name || "";
+    document.getElementById("file-name").textContent = name;
+});
+
 async function saveProfile(){
     let formData = new FormData();
     const nombre = document.getElementById("nombre").value;

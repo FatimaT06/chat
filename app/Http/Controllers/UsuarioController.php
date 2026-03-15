@@ -22,6 +22,22 @@ class UsuarioController extends Controller
             'foto' => 'nullable|image|max:2048'
         ]);
 
+        if($request->hasFile('nombre')){
+            $user->nombre = $request->nombre;
+        }
+
+        if($request->hasFile('apellido_p')){
+            $user->apellido_p = $request->apellido_p;
+        }
+
+        if($request->hasFile('apellido_m')){
+            $user->apellido_m = $request->apellido_m;
+        }
+
+        if($request->hasFile('password')){
+            $user->password_hash = Hash::make($request->password);
+
+        }
         // subir foto
         if ($request->hasFile('foto')) {
             $path = $request->file('foto')->store('perfiles', 'public');

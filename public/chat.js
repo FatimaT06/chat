@@ -407,6 +407,11 @@ function autoResize(el) {
   el.style.height = 'auto';
   el.style.height = Math.min(el.scrollHeight, 120) + 'px';
 }
+
+document.getElementById("chat-file").addEventListener("change", function(){
+  const name = this.files[0]?.name || "";
+  document.getElementById("file-name").textContent = name;
+});
 // Limpiar todo al cerrar
 window.addEventListener('beforeunload', () => {
   stopPolling();

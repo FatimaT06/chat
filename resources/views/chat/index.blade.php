@@ -66,6 +66,7 @@
           <div class="chat-header" id="chat-header"></div>
           <div class="messages" id="messages"></div>
           <div class="chat-input-row">
+            <div id="file-name" style="font-size:12px;margin-top:6px;color:var(--muted);"></div>
             <textarea
               class="chat-input"
               id="chat-input"
@@ -74,8 +75,8 @@
               onkeydown="handleInputKey(event)"
               oninput="autoResize(this)">
             </textarea>
-            <label class="file-btn">
-            +
+            <label class="file-icon" for="chat-file">
+            <img src="{{ asset('storage/foto/clip.png') }}" style="width:18px; height:23px; filter:invert(1);">
             <input type="file" id="chat-file">
             </label>
             <button class="send-btn" onclick="sendMessage()">
