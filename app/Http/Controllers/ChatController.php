@@ -50,26 +50,32 @@ class ChatController extends Controller
     public function enviar(Request $request, $id)
     {
         $request->validate([
-            'mensaje' => 'required|string|max:5000',
+            'mensaje' => 'nullable|string|max:5000',
             'archivo' => 'nullable|file|max:10240'
         ]);
 
         $miId = session('chat_user')['id_usuario'];
-        $archivoPath = null;
-        $archivo = $request->file('archivo');
-        $nombre = $archivo->getClientOriginalName();
 
-        if ($request->hasFile('archivo')){
+        $archivoPath = null;
+
+        if ($request->hasFile('archivo')) {
+            $archivo = $request->file('archivo');
+            $nombre = time().'_'.$archivo->getClientOriginalName();
             $archivoPath = $archivo->storeAs('chat', $nombre, 'public');
         }
 
+        if (!$request->mensaje && !$archivoPath) {
+            return response()->json(['error'=>'Mensaje vacío'],400);
+        }
+
         $mensaje = Mensaje::create([
-            'id_emisor'         => $miId,
-            'id_receptor'       => (int) $id,
-            'contenido_cifrado' => $request->mensaje,
-            'archivo'           => $archivoPath,
+            'id_emisor' => $miId,
+            'id_receptor' => (int) $id,
+            'contenido_cifrado' => $request->mensaje ?? '',
+            'archivo' => $archivoPath,
         ]);
 
         return response()->json($mensaje, 201);
     }
+
 }

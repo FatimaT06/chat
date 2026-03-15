@@ -32,6 +32,21 @@ function removeFile(){
 
 }
 
+function clearFile(){
+
+  const fileInput = document.getElementById("chat-file");
+  const filePreview = document.getElementById("file-preview");
+  const fileName = document.getElementById("file-name");
+
+  if(fileInput) fileInput.value = "";
+
+  if(filePreview) filePreview.style.display = "none";
+
+  if(fileName) fileName.textContent = "";
+
+}
+
+
 async function api(method, path, body = null) {
   const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
   const headers = {
@@ -121,7 +136,7 @@ function renderUserList(users) {
 
 async function openChat(user) {
   stopPolling();
-  
+  clearFile();
   activeChatId = user.id_usuario;
   currentChatId = user.id_usuario;
   lastMsgCount = 0;
@@ -218,27 +233,23 @@ async function fetchMessages() {
       });
     }
 
-    // Solo renderizar si hay mensajes nuevos
     if (msgs.length !== lastMsgCount) {
       lastMsgCount = msgs.length;
       renderMessages(msgs);
       
-      // Actualizar preview
       if (msgs.length > 0) {
         const lastMsg = msgs[msgs.length - 1];
         const preview = document.getElementById(`preview-${currentChatId}`);
         if (preview) {
-          preview.textContent = lastMsg.contenido_cifrado || '';
+          preview.textContent = lastMsg.contenido_cifrado || 'Archivo';
         }
       }
     }
   } catch (e) {
-    // Solo mostrar error si sigue siendo el mismo chat
     if (chatIdAtStart === currentChatId) {
       console.error('Error fetching messages:', e);
     }
   } finally {
-    // Solo resetear flag si sigue siendo el mismo chat
     if (chatIdAtStart === currentChatId) {
       isFetching = false;
     }
@@ -261,7 +272,6 @@ function renderMessages(msgs) {
     if (m.contenido_cifrado) {
       content += escHtml(m.contenido_cifrado);
     }
-    // Separador de fecha si cambió el día
     if (dateLabel && dateLabel !== lastDate) {
       html += `<div class="date-sep">${dateLabel}</div>`;
       lastDate = dateLabel;
@@ -308,70 +318,71 @@ function renderMessages(msgs) {
 }
 
 async function sendMessage() {
+
   const input = document.getElementById('chat-input');
   const text = input.value.trim();
   const file = document.getElementById('chat-file').files[0];
-  input.value = '';
-  input.style.height = 'auto';
-  document.getElementById('chat-file').value = '';
+
   if ((!text && !file) || !currentChatId) return;
 
-  // Guardar referencia al chat actual
-  const chatIdAtSend = currentChatId;
-
-  // 1. LIMPIAR INPUT INMEDIATAMENTE
   input.value = '';
   input.style.height = 'auto';
 
-  // 2. MOSTRAR MENSAJE INMEDIATAMENTE
+  const chatIdAtSend = currentChatId;
+
   const container = document.getElementById('messages');
-  
+
   const tempId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
   const timestamp = new Date().toISOString();
-  
+
   const msgDiv = document.createElement('div');
   msgDiv.className = 'msg mine pending';
   msgDiv.dataset.tempId = tempId;
+
   let content = '';
+
   if (text) {
     content += escHtml(text);
   }
-if (file) {
 
-  const ext = file.name.split('.').pop().toLowerCase();
+  if (file) {
 
-  if (['jpg','jpeg','png','gif','webp'].includes(ext)) {
+    const ext = file.name.split('.').pop().toLowerCase();
 
-    const preview = URL.createObjectURL(file);
+    if (['jpg','jpeg','png','gif','webp'].includes(ext)) {
 
-    content += `
+      const preview = URL.createObjectURL(file);
+
+      content += `
       <div class="msg-img">
         <img src="${preview}" style="max-width:200px;border-radius:8px;">
       </div>
-    `;
+      `;
 
-  } else {
+    } else {
 
-    content += `
+      content += `
       <div class="msg-file">
-        <img src="/storage/foto/clip.png" style="width:15px; height:15px;  filter:invert(1);"> ${file.name}
+        <img src="/storage/foto/clip.png" style="width:15px;height:15px;filter:invert(1);">
+        ${file.name}
       </div>
-    `;
+      `;
 
+    }
   }
-}
+
   msgDiv.innerHTML = `
-    ${content}
-    <span class="msg-time">${formatTime(timestamp)} ✓</span>
+  ${content}
+  <span class="msg-time">${formatTime(timestamp)} ✓</span>
   `;
+
   container.appendChild(msgDiv);
   container.scrollTop = container.scrollHeight;
 
-  // Guardar pendiente
   if (!pendingMessages.has(currentChatId)) {
     pendingMessages.set(currentChatId, []);
   }
-  
+
   pendingMessages.get(currentChatId).push({
     tempId: tempId,
     element: msgDiv,
@@ -379,48 +390,69 @@ if (file) {
     timestamp: timestamp
   });
 
-  // 3. ENVIAR AL SERVIDOR
   try {
+
+  
     const formData = new FormData();
-    formData.append("mensaje", text);
-    formData.append("archivo", file);
 
-    await fetch(`/chat/${currentChatId}`, {
-      method: "POST",
-      headers: {
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-      },
-      body: formData
-    });
+    if (text) {
+      formData.append("mensaje", text);
+    }
 
-    
-    // Si el chat sigue siendo el mismo
+    if (file) {
+      formData.append("archivo", file);
+    }
+
+    const res = await fetch(`/chat/${currentChatId}`, {
+  method: "POST",
+  headers: {
+    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+  },
+  body: formData
+});
+
+if(!res.ok){
+  const err = await res.text();
+  console.error("SERVER ERROR:", err);
+  throw new Error(err);
+}
+
+
+    clearFile();
+
     if (chatIdAtSend === currentChatId) {
-      // Actualizar preview
+
       const preview = document.getElementById(`preview-${currentChatId}`);
       if (preview) preview.textContent = text;
-      
-      // Verificar confirmación pronto
+
       setTimeout(() => {
         if (chatIdAtSend === currentChatId && !isFetching) {
           fetchMessages();
         }
       }, 800);
     }
+
   } catch (e) {
-    // Solo mostrar error si sigue siendo el mismo chat
+
     if (chatIdAtSend === currentChatId) {
+
       toast('Error al enviar mensaje');
       msgDiv.classList.add('error');
+
       const timeSpan = msgDiv.querySelector('.msg-time');
       if (timeSpan) timeSpan.innerHTML += ' ⚠';
-      
-      // Eliminar de pendientes
+
+      clearFile();
+
       const pending = pendingMessages.get(currentChatId) || [];
-      pendingMessages.set(currentChatId, pending.filter(p => p.tempId !== tempId));
+      pendingMessages.set(
+        currentChatId,
+        pending.filter(p => p.tempId !== tempId)
+      );
     }
   }
 }
+
 
 function handleInputKey(e) {
   if (e.key === 'Enter' && !e.shiftKey) {
