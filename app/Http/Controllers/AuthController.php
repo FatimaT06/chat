@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
-
 class AuthController extends Controller
 {
     public function register(Request $request)
@@ -19,10 +18,10 @@ class AuthController extends Controller
             'apellido_p'       => 'required|string|max:100',
             'apellido_m'       => 'required|string|max:100',
             'correo'           => 'required|email|unique:usuarios,correo',
-            'fecha_nacimiento' => 'required|date',
+            'fecha_nacimiento' => 'required|date'
         ]);
 
-        $passwordPlano = Str::random(8);
+        $passwordPlano = $request->password ?? Str::random(8);
 
         $user = Usuario::create([
             'nombre'           => $request->nombre,
@@ -40,9 +39,17 @@ class AuthController extends Controller
         }
 
         $token = $user->createToken('auth_token')->plainTextToken;
-        session(['chat_token' => $token, 'chat_user' => $user->toArray()]);
 
-        return redirect()->route('chat');
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'user' => $user,
+                'token' => $token
+            ]);
+        } else {
+            session(['chat_token' => $token, 'chat_user' => $user->toArray()]);
+            return redirect()->route('chat');
+        }
     }
 
     public function login(Request $request)
@@ -52,27 +59,46 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $user = Usuario::where('correo', $request->correo)
-            ->select('id_usuario', 'nombre', 'apellido_p', 'apellido_m', 'correo', 'password_hash')
-            ->first();
+        $user = Usuario::where('correo', $request->correo)->first();
 
         if (!$user || !Hash::check($request->password, $user->password_hash)) {
-            return back()->withErrors(['correo' => 'Las credenciales son incorrectas.'])->withInput();
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => 'Credenciales incorrectas'], 401);
+            } else {
+                return back()->withErrors(['correo' => 'Las credenciales son incorrectas.'])->withInput();
+            }
         }
 
         $user->tokens()->delete();
         $token = $user->createToken('auth_token')->plainTextToken;
-        session(['chat_token' => $token, 'chat_user' => $user->toArray()]);
 
-        return redirect()->route('chat');
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'user' => $user,
+                'token' => $token
+            ]);
+        } else {
+            session(['chat_token' => $token, 'chat_user' => $user->toArray()]);
+            return redirect()->route('chat');
+        }
     }
 
-    public function logout()
+    public function logout(Request $request)
     {
-        $user = Usuario::find(session('chat_user')['id_usuario'] ?? null);
-        if ($user) $user->tokens()->delete();
+        $user = session('chat_user')['id_usuario'] ?? null;
+
+        if ($user) {
+            $usuario = Usuario::find($user);
+            $usuario->tokens()->delete();
+        }
 
         session()->flush();
-        return redirect()->route('login');
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Sesión cerrada']);
+        } else {
+            return redirect()->route('login');
+        }
     }
 }

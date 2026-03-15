@@ -14,6 +14,7 @@ class Mensaje extends Model
         'id_emisor',
         'id_receptor',
         'contenido_cifrado',
+        'archivo'
     ];
 
     protected $casts = [

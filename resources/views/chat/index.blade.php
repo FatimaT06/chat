@@ -30,6 +30,7 @@
       <div class="topbar-logo">A&amp;F Chat</div>
       <div class="topbar-user">
         <span>{{ session('chat_user')['nombre'] ?? '' }}</span>
+        <a href="{{ route('usuario.configuracion') }}" class="config-btn">Configuración</a>
         <form method="POST" action="{{ route('logout') }}" style="margin:0">
           @csrf
           <button class="logout-btn" type="submit">Salir</button>
@@ -45,10 +46,12 @@
         </div>
 
         <div class="user-item" id="ai-sidebar-item" onclick="openAIChat()">
-          <div class="avatar" style="background:rgba(0,206,200,0.2);color:var(--accent);">A</div><!-- class="user-avatar" → "avatar" -->
+          <div class="avatar">
+            <img src="/storage/foto/chat.webp" alt="IA" style="width:100%; height:100%; border-radius:50%; object-fit: cover;">
+          </div>
           <div class="user-info">
             <div class="user-name">Asistente IA</div>
-            <div class="user-preview" id="ai-preview">Toca para chatear</div><!-- class="user-last-msg" → "user-preview" -->
+            <div class="user-preview" id="ai-preview">Toca para chatear</div>
           </div>
         </div>
 
@@ -64,45 +67,76 @@
         <div id="chat-panel" style="display:none; flex-direction:column; flex:1; overflow:hidden;">
           <div class="chat-header" id="chat-header"></div>
           <div class="messages" id="messages"></div>
-          <div class="chat-input-row">
-            <textarea
-              class="chat-input"
-              id="chat-input"
-              rows="1"
-              placeholder="Escribe un mensaje..."
-              onkeydown="handleInputKey(event)"
-              oninput="autoResize(this)">
-            </textarea>
-            <button class="send-btn" onclick="sendMessage()">
-              <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-            </button>
+          <div class="chat-input-container">
+            <div id="file-preview" class="file-preview" style="display:none;">
+              <span class="file-preview-icon">
+                <img src="{{ asset('storage/foto/clip.png') }}" style="width:15px; height:15px; filter:invert(1);">
+              </span>
+              <span id="file-name"></span>
+              <button type="button" class="remove-file" onclick="removeFile()">✕</button>
+            </div>
+            <div class="chat-input-row">
+              <textarea
+                class="chat-input"
+                id="chat-input"
+                rows="1"
+                placeholder="Escribe un mensaje..."
+                onkeydown="handleInputKey(event)"
+                oninput="autoResize(this)">
+              </textarea>
+              <label class="file-icon" for="chat-file">
+                <img src="{{ asset('storage/foto/clip.png') }}" style="width:18px; height:23px; filter:invert(1);">
+                <input type="file" id="chat-file">
+              </label>
+              <button class="send-btn" onclick="sendMessage()">
+                <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+              </button>
+            </div>
           </div>
         </div>
 
         <div id="ai-panel" style="display:none; flex-direction:column; flex:1; overflow:hidden;">
           <div class="chat-header" id="ai-header">
-            <div class="avatar" style="width:36px;height:36px;font-size:13px;flex-shrink:0;background:rgba(0,206,200,0.2);color:var(--accent);">A</div><!-- class="user-avatar" → "avatar" -->
+            <div class="avatar">
+              <img src="/storage/foto/chat.webp" alt="IA" style="width:100%; height:100%; border-radius:50%; object-fit: cover;">
+            </div>
             <div class="user-info" style="flex:1;">
               <div class="user-name">Asistente IA</div>
-              <div class="chat-header-status" id="ai-status">Gemini Flash</div><!-- class="user-last-msg" → "chat-header-status" -->
+              <div class="user-last-msg" id="ai-status">Gemini Flash</div>
             </div>
           </div>
           <div class="messages" id="ai-messages"></div>
-          <div class="chat-input-row">
-            <textarea
-              class="chat-input"
-              id="ai-input"
-              rows="1"
-              placeholder="Escribe un mensaje..."
-              onkeydown="handleAIKey(event)"
-              oninput="autoResize(this)">
-            </textarea>
-            <button class="send-btn" id="ai-send-btn" onclick="sendAIMessage()">
-              <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-            </button>
+          <div class="chat-input-container">
+            <!-- Preview de archivo para IA -->
+            <div id="ai-file-preview" class="file-preview" style="display:none;">
+              <span class="file-preview-icon">
+                <img src="{{ asset('storage/foto/clip.png') }}" style="width:15px; height:15px; filter:invert(1);">
+              </span>
+              <span id="ai-file-name"></span>
+              <button type="button" class="remove-file" onclick="removeAIFile()">✕</button>
+            </div>
+            
+            <div class="chat-input-row">
+              <textarea
+                class="chat-input"
+                id="ai-input"
+                rows="1"
+                placeholder="Escribe un mensaje..."
+                onkeydown="handleAIKey(event)"
+                oninput="autoResize(this)">
+              </textarea>
+              
+              <label class="file-icon" for="ai-chat-file">
+                <img src="{{ asset('storage/foto/clip.png') }}" style="width:18px; height:23px; filter:invert(1);">
+                <input type="file" id="ai-chat-file">
+              </label>
+              
+              <button class="send-btn" id="ai-send-btn" onclick="sendAIMessage()">
+                <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+              </button>
+            </div>
           </div>
         </div>
-
       </div>
     </div>
   </div>
@@ -113,6 +147,5 @@
     const CURRENT_USER_ID = {{ session('chat_user')['id_usuario'] ?? 'null' }};
   </script>
   <script src="{{ asset('chat.js') }}"></script>
-
 </body>
 </html>
