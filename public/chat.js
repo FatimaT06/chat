@@ -20,17 +20,12 @@ loadUsers();
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-/**
- * Detecta si una URL (local o Cloudinary) apunta a una imagen.
- * Cloudinary puede incluir parámetros de transformación antes de la extensión.
- */
 function isImageUrl(url) {
   if (!url) return false;
-  // Cloudinary URLs tienen el formato: .../upload/[transformaciones]/v123/nombre.ext
-  // También soportamos rutas locales.
-  return /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(url) ||
-         // Cloudinary resource_type=image sin extensión reconocible
-         (url.includes('cloudinary.com') && url.includes('/image/'));
+if (/\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$|\/)/i.test(url)) return true;
+if (url.includes('cloudinary.com') && url.includes('/image/upload/')) return true;
+if (url.includes('cloudinary.com') && !url.includes('/video/') && !url.includes('/raw/')) return true;
+  return false;
 }
 
 /**
@@ -312,28 +307,44 @@ function renderMessages(msgs) {
     if (m.contenido_cifrado) content += escHtml(m.contenido_cifrado);
 
     if (m.archivo) {
-      // ── Cloudinary: m.archivo es URL completa; legacy: ruta relativa ──
       const url      = resolveFileUrl(m.archivo);
-      const fileName = m.archivo.split('/').pop().split('?')[0]; // nombre limpio
+      const fileName = m.archivo.split('/').pop().split('?')[0];
+      const ext      = fileName.split('.').pop().toLowerCase();
 
       if (isImageUrl(m.archivo)) {
         content += `
-          <div class="msg-img">
-            <img src="${url}" style="max-width:200px;border-radius:8px;margin-top:5px;"
-                 loading="lazy">
+          <div class="msg-img" style="margin-top:${m.contenido_cifrado ? '8px' : '0'}">
+            <img src="${url}"
+                 loading="lazy"
+                 onclick="window.open('${url}','_blank')"
+                 style="max-width:260px;min-width:120px;width:100%;border-radius:12px;display:block;cursor:zoom-in;object-fit:cover;"
+                 onerror="this.parentElement.innerHTML='<span style=\'opacity:.6;font-size:12px\'>No se pudo cargar</span>'"
+            >
           </div>`;
       } else {
+        const fileIconSvg = `<svg width="32" height="38" viewBox="0 0 32 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="32" height="38" rx="4" fill="rgba(255,255,255,0.25)"/>
+          <path d="M6 10h13l7 7v17a2 2 0 01-2 2H6a2 2 0 01-2-2V12a2 2 0 012-2z" fill="rgba(255,255,255,0.9)"/>
+          <path d="M19 10l7 7h-5a2 2 0 01-2-2v-5z" fill="rgba(255,255,255,0.5)"/>
+          <rect x="8" y="20" width="16" height="1.5" rx="1" fill="rgba(0,150,140,0.5)"/>
+          <rect x="8" y="24" width="12" height="1.5" rx="1" fill="rgba(0,150,140,0.5)"/>
+          <rect x="8" y="28" width="14" height="1.5" rx="1" fill="rgba(0,150,140,0.5)"/>
+        </svg>`;
         content += `
-          <div class="msg-file">
-            <div class="file-icon">
-              <img src="/storage/foto/clip.png" style="width:15px;height:15px;filter:invert(1);">
+          <a href="${url}" target="_blank" download style="text-decoration:none;">
+            <div style="display:flex;align-items:center;gap:12px;background:rgba(0,0,0,0.12);border-radius:12px;padding:10px 14px;margin-top:${m.contenido_cifrado ? '8px' : '0'};min-width:200px;max-width:280px;cursor:pointer;">
+              <div style="flex-shrink:0;">${fileIconSvg}</div>
+              <div style="flex:1;overflow:hidden;">
+                <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:inherit;opacity:0.95;">${escHtml(fileName)}</div>
+                <div style="font-size:11px;opacity:0.65;margin-top:3px;text-transform:uppercase;letter-spacing:0.5px;">${ext}</div>
+              </div>
+              <div style="flex-shrink:0;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.7">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              </div>
             </div>
-            <div class="file-info">
-              <div class="file-name">${escHtml(fileName)}</div>
-              <a href="${url}" target="_blank" class="file-download"
-                 style="color:var(--primary);text-decoration:underline;">Descargar</a>
-            </div>
-          </div>`;
+          </a>`;
       }
     }
 
@@ -378,11 +389,30 @@ async function sendMessage() {
 
   if (file) {
     const ext = file.name.split('.').pop().toLowerCase();
-    if (['jpg','jpeg','png','gif','webp'].includes(ext)) {
-      const preview = URL.createObjectURL(file);
-      content += `<div class="msg-img"><img src="${preview}" style="max-width:200px;border-radius:8px;"></div>`;
+    if (['jpg','jpeg','png','gif','webp','bmp'].includes(ext)) {
+      const previewUrl = URL.createObjectURL(file);
+      content += `<div class="msg-img" style="margin-top:${text ? '8px' : '0'}"><img src="${previewUrl}" style="max-width:260px;min-width:120px;width:100%;border-radius:12px;display:block;object-fit:cover;"></div>`;
     } else {
-      content += `<div class="msg-file"><img src="/storage/foto/clip.png" style="width:15px;height:15px;filter:invert(1);"> ${escHtml(file.name)}</div>`;
+      const fileIconSvg2 = `<svg width="32" height="38" viewBox="0 0 32 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="32" height="38" rx="4" fill="rgba(255,255,255,0.25)"/>
+        <path d="M6 10h13l7 7v17a2 2 0 01-2 2H6a2 2 0 01-2-2V12a2 2 0 012-2z" fill="rgba(255,255,255,0.9)"/>
+        <path d="M19 10l7 7h-5a2 2 0 01-2-2v-5z" fill="rgba(255,255,255,0.5)"/>
+        <rect x="8" y="20" width="16" height="1.5" rx="1" fill="rgba(0,150,140,0.5)"/>
+        <rect x="8" y="24" width="12" height="1.5" rx="1" fill="rgba(0,150,140,0.5)"/>
+        <rect x="8" y="28" width="14" height="1.5" rx="1" fill="rgba(0,150,140,0.5)"/>
+      </svg>`;
+      content += `<div style="display:flex;align-items:center;gap:12px;background:rgba(0,0,0,0.12);border-radius:12px;padding:10px 14px;margin-top:${text ? '8px' : '0'};min-width:200px;max-width:280px;">
+        <div style="flex-shrink:0;">${fileIconSvg2}</div>
+        <div style="flex:1;overflow:hidden;">
+          <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:inherit;opacity:0.95;">${escHtml(file.name)}</div>
+          <div style="font-size:11px;opacity:0.65;margin-top:3px;text-transform:uppercase;letter-spacing:0.5px;">${ext}</div>
+        </div>
+        <div style="flex-shrink:0;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.7">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+        </div>
+      </div>`;
     }
   }
 
