@@ -22,7 +22,8 @@ class Usuario extends Authenticatable
         'correo',
         'password_hash',
         'fecha_nacimiento',
-        'foto'
+        'foto',
+        'firebase_token'
     ];
 
     protected $hidden = [

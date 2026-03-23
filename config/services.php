@@ -39,8 +39,8 @@ return [
         'key' => env('BREVO_API_KEY'),
     ],
 
-    'brevo' => [
-        'key' => env('BREVO_API_KEY'),
+    'fcm' => [
+        'project_id'       => env('FCM_PROJECT_ID'),
+        'credentials_path' => storage_path('app/firebase-credentials.json'),
     ],
-
 ];

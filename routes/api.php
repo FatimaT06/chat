@@ -9,9 +9,10 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login',    [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/logout',    [AuthController::class, 'logout']);
-    Route::get('/usuarios',   [ChatController::class, 'usuarios']);
-    Route::get('/chat/{id}',  [ChatController::class, 'conversacion']);
-    Route::post('/chat/{id}', [ChatController::class, 'enviar']);
-    Route::post('/usuario/update', [UsuarioController::class, 'modificarUsuario']);
+    Route::post('/logout',           [AuthController::class, 'logout']);
+    Route::get('/usuarios',          [ChatController::class, 'usuarios']);
+    Route::get('/chat/{id}',         [ChatController::class, 'conversacion']);
+    Route::post('/chat/{id}',        [ChatController::class, 'enviar']);
+    Route::post('/usuario/update',   [UsuarioController::class, 'modificarUsuario']);
+    Route::post('/firebase-token',   [ChatController::class, 'updateFirebaseToken']);
 });

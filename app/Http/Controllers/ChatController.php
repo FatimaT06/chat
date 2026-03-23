@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Usuario;
 use App\Models\Mensaje;
+use App\Services\FcmService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -12,7 +13,7 @@ class ChatController extends Controller
 {
     /**
      * Obtiene el ID del usuario autenticado.
-     * Soporta: sesión web, auth()->user() (Sanctum/Passport), y sesión chat_user.
+     * Soporta: sesión web, auth()->user() (Sanctum), y sesión chat_user.
      */
     private function getMiId(): ?int
     {
@@ -43,11 +44,10 @@ class ChatController extends Controller
                 ->orderBy('nombre')
                 ->get()
                 ->map(function ($u) {
-                    // foto: si ya es URL completa la dejamos, si es ruta local la resolvemos
                     if ($u->foto && !str_starts_with($u->foto, 'http')) {
                         $u->foto_url = url('storage/' . $u->foto);
                     } else {
-                        $u->foto_url = $u->foto; // URL de Cloudinary o null
+                        $u->foto_url = $u->foto;
                     }
                     return $u;
                 });
@@ -92,7 +92,7 @@ class ChatController extends Controller
         return response()->json($mensajes);
     }
 
-    public function enviar(Request $request, $id)
+    public function enviar(Request $request, $id, FcmService $fcm)
     {
         $miId = $this->getMiId();
 
@@ -114,7 +114,6 @@ class ChatController extends Controller
             $mime = $file->getMimeType();
 
             if (str_starts_with($mime, 'image/')) {
-                // Imágenes → Cloudinary
                 $archivoUrl = $this->subirImagenACloudinary($file, $miId, $id);
 
                 if (!$archivoUrl) {
@@ -123,11 +122,9 @@ class ChatController extends Controller
                         : back()->with('error', 'Error al subir la imagen');
                 }
             } else {
-                // PDFs, docs, zip, etc. → Cloudinary carpeta chat/
                 $archivoUrl = $this->subirArchivoACloudinary($file, $miId, $id);
 
                 if (!$archivoUrl) {
-                    // Fallback: storage local si Cloudinary falla
                     $nombre     = time() . '_' . $file->getClientOriginalName();
                     $archivoUrl = url('storage/' . $file->storeAs('chat', $nombre, 'public'));
                 }
@@ -149,27 +146,59 @@ class ChatController extends Controller
 
         $mensaje->archivo_url = $archivoUrl;
 
+        // ── Notificación push ────────────────────────────────────────────
+        $receptor = Usuario::find((int) $id);
+
+        if ($receptor && $receptor->firebase_token) {
+            $emisor = Usuario::find($miId);
+            $nombre = $emisor
+                ? trim("{$emisor->nombre} {$emisor->apellido_p}")
+                : 'Nuevo mensaje';
+
+            // Texto del cuerpo: si es solo archivo sin texto, muestra etiqueta
+            $cuerpo = $request->mensaje
+                ?? ($archivoUrl ? '📎 Archivo adjunto' : '');
+
+            $fcm->sendNotification(
+                fcmToken: $receptor->firebase_token,
+                title:    $nombre,
+                body:     $cuerpo,
+                data:     [
+                    'type'       => 'new_message',
+                    'message_id' => $mensaje->id_mensaje,
+                    'sender_id'  => $miId,
+                ]
+            );
+        }
+        // ────────────────────────────────────────────────────────────────
+
         return $request->expectsJson()
             ? response()->json($mensaje, 201)
             : back()->with('success', 'Mensaje enviado');
     }
 
-    /**
-     * Sube archivos (PDF, docs, etc.) a Cloudinary carpeta chat/ vía API REST.
-     * Usa resource_type=raw para archivos no-imagen.
-     */
+    // ── Endpoint para guardar/actualizar el firebase_token ───────────────
+    public function updateFirebaseToken(Request $request)
+    {
+        $request->validate(['firebase_token' => 'required|string']);
+
+        $user = auth()->user();
+        $user->firebase_token = $request->firebase_token;
+        $user->save();
+
+        return response()->json(['ok' => true]);
+    }
+
     private function subirArchivoACloudinary($file, $miId, $receptorId): ?string
     {
         $cloudName = env('CLOUDINARY_CLOUD_NAME');
         $apiKey    = env('CLOUDINARY_API_KEY');
         $apiSecret = env('CLOUDINARY_API_SECRET');
 
-        $timestamp = time();
-        $folder    = 'chat/' . min($miId, $receptorId) . '_' . max($miId, $receptorId);
-        $publicId  = $timestamp . '_' . pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-        $ext       = $file->getClientOriginalExtension();
-
-        // Para raw, Cloudinary NO agrega la extensión automáticamente — la ponemos en public_id
+        $timestamp      = time();
+        $folder         = 'chat/' . min($miId, $receptorId) . '_' . max($miId, $receptorId);
+        $publicId       = $timestamp . '_' . pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+        $ext            = $file->getClientOriginalExtension();
         $publicIdConExt = $publicId . '.' . $ext;
 
         $paramsToSign = "folder={$folder}&public_id={$publicIdConExt}&timestamp={$timestamp}";
@@ -196,7 +225,7 @@ class ChatController extends Controller
     }
 
     /**
-     * Sube imágenes a Cloudinary vía API REST directa (sin SDK).
+     * Sube imágenes a Cloudinary vía API REST directa.
      */
     private function subirImagenACloudinary($file, $miId, $receptorId): ?string
     {
@@ -204,9 +233,9 @@ class ChatController extends Controller
         $apiKey    = env('CLOUDINARY_API_KEY');
         $apiSecret = env('CLOUDINARY_API_SECRET');
 
-        $timestamp = time();
-        $folder    = 'chat/' . min($miId, $receptorId) . '_' . max($miId, $receptorId);
-        $publicId  = $timestamp . '_' . pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+        $timestamp    = time();
+        $folder       = 'chat/' . min($miId, $receptorId) . '_' . max($miId, $receptorId);
+        $publicId     = $timestamp . '_' . pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
 
         $paramsToSign = "folder={$folder}&public_id={$publicId}&timestamp={$timestamp}";
         $signature    = sha1($paramsToSign . $apiSecret);
