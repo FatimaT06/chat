@@ -28,11 +28,6 @@ if (url.includes('cloudinary.com') && !url.includes('/video/') && !url.includes(
   return false;
 }
 
-/**
- * Devuelve la URL correcta para mostrar/descargar.
- * Si el archivo ya es URL completa (Cloudinary) la devuelve tal cual;
- * si es ruta relativa (legacy /storage/...) le agrega el prefijo.
- */
 function resolveFileUrl(archivo) {
   if (!archivo) return '';
   if (archivo.startsWith('http://') || archivo.startsWith('https://')) {

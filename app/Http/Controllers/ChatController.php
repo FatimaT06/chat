@@ -11,10 +11,6 @@ use Illuminate\Support\Facades\Http;
 
 class ChatController extends Controller
 {
-    /**
-     * Obtiene el ID del usuario autenticado.
-     * Soporta: sesión web, auth()->user() (Sanctum), y sesión chat_user.
-     */
     private function getMiId(): ?int
     {
         if (auth()->check()) {

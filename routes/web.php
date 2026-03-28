@@ -21,4 +21,5 @@ Route::middleware('auth.token')->group(function () {
     Route::get('/usuarios',   [ChatController::class, 'usuarios']);
     Route::get('/chat/{id}',  [ChatController::class, 'conversacion']);
     Route::post('/chat/{id}', [ChatController::class, 'enviar']);
+    Route::post('/firebase-token',   [ChatController::class, 'updateFirebaseToken']);
 });
