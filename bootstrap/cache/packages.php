@@ -6,6 +6,13 @@
       0 => 'CloudinaryLabs\\CloudinaryLaravel\\CloudinaryServiceProvider',
     ),
   ),
+  'laragear/webauthn' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Laragear\\WebAuthn\\WebAuthnServiceProvider',
+    ),
+  ),
   'laravel/pail' => 
   array (
     'providers' => 
