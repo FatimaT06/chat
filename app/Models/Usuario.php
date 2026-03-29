@@ -23,7 +23,8 @@ class Usuario extends Authenticatable
         'password_hash',
         'fecha_nacimiento',
         'foto',
-        'firebase_token'
+        'firebase_token',
+        'biometric_credential'
     ];
 
     protected $hidden = [
@@ -44,4 +45,8 @@ class Usuario extends Authenticatable
     {
         return $this->hasMany(Mensaje::class, 'receiver_id', 'id_usuario');
     }
+
+    protected $casts = [
+        'biometric_credential' => 'array', // Laravel lo convierte a array automáticamente
+    ];
 }

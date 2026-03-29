@@ -48,8 +48,6 @@
         <div style="display:flex; justify-content:center; margin:25px 0;">
           @php
             $foto = session('chat_user')['foto'] ?? null;
-            // Si ya es URL completa de Cloudinary la usamos directo,
-            // si es ruta local legacy le agregamos /storage/
             $fotoUrl = $foto
               ? (str_starts_with($foto, 'http') ? $foto : asset('storage/' . $foto))
               : null;
@@ -76,20 +74,17 @@
 
           <div class="field">
             <label>Nombre</label>
-            <input type="text" name="nombre"
-              value="{{ session('chat_user')['nombre'] ?? '' }}">
+            <input type="text" name="nombre" value="{{ session('chat_user')['nombre'] ?? '' }}">
           </div>
 
           <div class="field">
             <label>Apellido Paterno</label>
-            <input type="text" name="apellido_p"
-              value="{{ session('chat_user')['apellido_p'] ?? '' }}">
+            <input type="text" name="apellido_p" value="{{ session('chat_user')['apellido_p'] ?? '' }}">
           </div>
 
           <div class="field">
             <label>Apellido Materno</label>
-            <input type="text" name="apellido_m"
-              value="{{ session('chat_user')['apellido_m'] ?? '' }}">
+            <input type="text" name="apellido_m" value="{{ session('chat_user')['apellido_m'] ?? '' }}">
           </div>
 
           <div class="field">
@@ -124,11 +119,65 @@
 
         </form>
 
+        {{-- Registro de biometría --}}
+        <div style="margin-top:20px; text-align:center;">
+          <button class="btn" id="btn-register-biometric">Registrar biometría</button>
+        </div>
+
       </div>
     </div>
   </div>
-
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    const correo = "{{ session('chat_user')['correo'] ?? '' }}";
+
+    const btnRegister = document.getElementById('btn-register-biometric');
+
+    btnRegister.addEventListener('click', async () => {
+        if (!correo) { alert('No se detecta correo del usuario'); return; }
+        if (!window.PublicKeyCredential) { alert('Tu navegador no soporta WebAuthn'); return; }
+
+        try {
+            const challengeResp = await fetch("{{ route('biometria.challenge') }}");
+            const challengeData = await challengeResp.json();
+
+            const publicKey = {
+                challenge: Uint8Array.from(atob(challengeData.challenge), c => c.charCodeAt(0)),
+                rp: { name: "A&F Chat" },
+                user: { id: Uint8Array.from(correo, c => c.charCodeAt(0)), name: correo, displayName: correo },
+                pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
+                timeout: 60000,
+                authenticatorSelection: { userVerification: "preferred" },
+                attestation: "none"
+            };
+
+            const credential = await navigator.credentials.create({ publicKey });
+
+            const credentialJson = {
+                id: credential.id,
+                type: credential.type,
+                rawId: Array.from(new Uint8Array(credential.rawId))
+            };
+
+            const resp = await fetch("{{ route('biometria.save') }}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfMeta.content },
+                body: JSON.stringify({ correo, credential: JSON.stringify(credentialJson) })
+            });
+
+            const data = await resp.json();
+            alert(data.message || 'Biometría registrada');
+
+        } catch (err) {
+            alert("Error al registrar biometría: " + err.message);
+        }
+    });
+});
+</script>
+
 <script src="{{ asset('actualizarPerfil.js') }}"></script>
 </body>
 </html>
